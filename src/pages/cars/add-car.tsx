@@ -26,17 +26,22 @@ import { PageContainer } from '@/components/layout/page-container';
 import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
-    make: z.string().min(1, 'Make is required'),
-    model: z.string().min(1, 'Model is required'),
-    year: z.number().min(1900).max(new Date().getFullYear() + 1),
-    color: z.string().min(1, 'Color is required'),
-    registrationNumber: z.string().min(1, 'Registration number is required'),
-    purchasePrice: z.number().positive('Price must be positive'),
-    purchaseDate: z.string().min(1, 'Purchase date is required'),
-    currentStatus: z.enum(['Available', 'Sold']).refine(value => value === 'Available' || value === 'Sold', {
-        message: 'Current status must be "Available" or "Sold"',
-    }),
-    condition: z.string().min(1, 'Condition is required')
+  make: z.string().min(1, 'Make is required'),
+  model: z.string().min(1, 'Model is required'),
+  year: z.number().min(1900).max(new Date().getFullYear() + 1),
+  color: z.string().min(1, 'Color is required'),
+  registrationNumber: z.string().min(1, 'Registration number is required'),
+  purchasePrice: z.number().positive('Price must be positive'),
+  purchaseDate: z.string().min(1, 'Purchase date is required'),
+  currentStatus: z.enum(['Available', 'Sold']).refine(value => value === 'Available' || value === 'Sold', {
+    message: 'Current status must be "Available" or "Sold"',
+  }),
+  condition: z.string().min(1, 'Condition is required'),
+  sellerName: z.string().min(1, 'Seller name is required'),
+  sellerContact: z.string().min(1, 'Seller contact is required'),
+  transportCost: z.number().optional(),
+  inspectionCost: z.number().optional(),
+  otherCost: z.number().optional()
 });
 
 export function AddCar() {
@@ -63,7 +68,15 @@ export function AddCar() {
         purchasePrice: values.purchasePrice,
         purchaseDate: values.purchaseDate,
         currentStatus: values.currentStatus,
-        condition: values.condition
+        condition: values.condition,
+        sellerName: values.sellerName,
+        sellerContact: values.sellerContact,
+        additionalCosts: {
+          transport: values.transportCost || 0,
+          inspection: values.inspectionCost || 0,
+          other: values.otherCost || 0
+        },
+        totalCost: (values.transportCost || 0) + (values.inspectionCost || 0) + (values.otherCost || 0)
       });
 
       toast({
@@ -246,6 +259,91 @@ export function AddCar() {
                           <SelectItem value="Certified Pre-Owned">Certified Pre-Owned</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="sellerName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Seller Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter seller name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="sellerContact"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Seller Contact</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter seller contact" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="transportCost"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Transport Cost</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="Enter transport cost" 
+                          {...field} 
+                          onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="inspectionCost"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Inspection Cost</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="Enter inspection cost" 
+                          {...field}
+                          onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="otherCost"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Other Costs</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="Enter other costs" 
+                          {...field}
+                          onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

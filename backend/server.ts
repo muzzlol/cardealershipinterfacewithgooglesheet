@@ -28,9 +28,9 @@ const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 
 // Sheet ranges
 const RANGES = {
-    CARS: 'Cars!A2:J',
-    REPAIRS: 'Repairs!A2:F',
-    SALES: 'Sales!A2:H',
+    CARS: 'Cars!A2:N',
+    REPAIRS: 'Repairs!A2:G',
+    SALES: 'Sales!A2:J',
     PARTNERS: 'Partners!A2:E'
 };
 
@@ -63,7 +63,11 @@ app.get('/api/cars', async (req, res) => {
             purchasePrice: Number(row[6]),
             purchaseDate: row[7],
             currentStatus: row[8],
-            condition: row[9]
+            condition: row[9],
+            sellerName: row[10],
+            sellerContact: row[11],
+            additionalCosts: JSON.parse(row[12]),
+            totalCost: Number(row[13])
         }));
 
         res.json(cars);
@@ -75,7 +79,16 @@ app.get('/api/cars', async (req, res) => {
 
 app.post('/api/cars', async (req, res) => {
     try {
-        const { make, model, year, color, registrationNumber, purchasePrice, purchaseDate, currentStatus, condition } = req.body;
+        const { 
+            make, model, year, color, registrationNumber, 
+            purchasePrice, purchaseDate, currentStatus, condition,
+            sellerName, sellerContact, additionalCosts 
+        } = req.body;
+
+        const totalCost = purchasePrice + 
+            (additionalCosts?.transport || 0) + 
+            (additionalCosts?.inspection || 0) + 
+            (additionalCosts?.other || 0);
 
         // Get existing cars to generate new ID
         const response = await sheets.spreadsheets.values.get({
@@ -87,16 +100,10 @@ app.post('/api/cars', async (req, res) => {
         const newId = generateId('C', existingIds);
 
         const newRow = [
-            newId,
-            make,
-            model,
-            year,
-            color,
-            registrationNumber,
-            purchasePrice,
-            purchaseDate,
-            'Available', // Default status
-            condition
+            newId, make, model, year, color, registrationNumber,
+            purchasePrice, purchaseDate, 'Available', condition,
+            sellerName, sellerContact,
+            JSON.stringify(additionalCosts), totalCost
         ];
 
         await sheets.spreadsheets.values.append({
@@ -108,7 +115,7 @@ app.post('/api/cars', async (req, res) => {
             }
         });
 
-        res.status(201).json({ id: newId, ...req.body, currentStatus: 'Available' });
+        res.status(201).json({ id: newId, ...req.body, totalCost });
     } catch (error) {
         console.error('Error adding car:', error);
         res.status(500).json({ error: 'Failed to add car' });
@@ -126,13 +133,20 @@ app.get('/api/repairs', async (req, res) => {
         const repairs = (response.data.values || []).map(row => ({
             id: row[0],
             carId: row[1],
-            date: row[2],
+            repairDate: row[2],
             description: row[3],
             cost: Number(row[4]),
-            mechanic: row[5]
+            mechanicName: row[5],
+            serviceProvider: JSON.parse(row[6])
         }));
 
-        res.json(repairs);
+        // Filter by carId if provided in query params
+        const { carId } = req.query;
+        const filteredRepairs = carId 
+            ? repairs.filter(repair => repair.carId === carId)
+            : repairs;
+
+        res.json(filteredRepairs);
     } catch (error) {
         console.error('Error fetching repairs:', error);
         res.status(500).json({ error: 'Failed to fetch repairs' });
@@ -141,7 +155,10 @@ app.get('/api/repairs', async (req, res) => {
 
 app.post('/api/repairs', async (req, res) => {
     try {
-        const { carId, date, description, cost, mechanic } = req.body;
+        const { 
+            carId, repairDate, description, cost, 
+            mechanicName, serviceProvider 
+        } = req.body;
 
         // Get existing repairs to generate new ID
         const response = await sheets.spreadsheets.values.get({
@@ -153,12 +170,8 @@ app.post('/api/repairs', async (req, res) => {
         const newId = generateId('R', existingIds);
 
         const newRow = [
-            newId,
-            carId,
-            date,
-            description,
-            cost,
-            mechanic
+            newId, carId, repairDate, description, cost,
+            mechanicName, JSON.stringify(serviceProvider)
         ];
 
         await sheets.spreadsheets.values.append({
@@ -192,8 +205,10 @@ app.get('/api/sales', async (req, res) => {
             salePrice: Number(row[3]),
             buyerName: row[4],
             buyerContactInfo: row[5],
-            profit: Number(row[6]),
-            paymentStatus: row[7]
+            netProfit: Number(row[6]),
+            paymentStatus: row[7],
+            totalRepairCosts: Number(row[8]),
+            profit: Number(row[9])
         }));
 
         res.json(sales);
@@ -205,25 +220,35 @@ app.get('/api/sales', async (req, res) => {
 
 app.post('/api/sales', async (req, res) => {
     try {
-        const { carId, saleDate, salePrice, buyerName, buyerContactInfo } = req.body;
+        const { 
+            carId, saleDate, salePrice, 
+            buyerName, buyerContactInfo, paymentStatus 
+        } = req.body;
 
-        // Get car details to calculate profit
+        // Get car details and repair costs
         const carResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: RANGES.CARS
         });
         
-        const car = (carResponse.data.values || [])
-            .find(row => row[0] === carId);
+        const car = carResponse.data.values?.find(row => row[0] === carId);
+        if (!car) throw new Error('Car not found');
         
-        if (!car) {
-            return res.status(404).json({ error: 'Car not found' });
-        }
+        const totalCost = Number(car[13]); // Index of totalCost
 
-        const purchasePrice = Number(car[6]);
-        const profit = salePrice - purchasePrice;
+        // Get repair costs
+        const repairsResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: RANGES.REPAIRS
+        });
+        
+        const totalRepairCosts = (repairsResponse.data.values || [])
+            .filter(row => row[1] === carId)
+            .reduce((sum, row) => sum + Number(row[4]), 0);
 
-        // Get existing sales to generate new ID
+        const netProfit = salePrice - totalCost - totalRepairCosts;
+
+        // Generate new sale ID
         const salesResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: RANGES.SALES
@@ -233,14 +258,9 @@ app.post('/api/sales', async (req, res) => {
         const newId = generateId('S', existingIds);
 
         const newRow = [
-            newId,
-            carId,
-            saleDate,
-            salePrice,
-            buyerName,
-            buyerContactInfo,
-            profit,
-            'Pending' // Default payment status
+            newId, carId, saleDate, salePrice,
+            buyerName, buyerContactInfo, netProfit,
+            paymentStatus, totalRepairCosts, netProfit
         ];
 
         await sheets.spreadsheets.values.append({
@@ -267,12 +287,7 @@ app.post('/api/sales', async (req, res) => {
             });
         }
 
-        res.status(201).json({
-            id: newId,
-            ...req.body,
-            profit,
-            paymentStatus: 'Pending'
-        });
+        res.status(201).json({ id: newId, ...req.body, netProfit, totalRepairCosts });
     } catch (error) {
         console.error('Error adding sale:', error);
         res.status(500).json({ error: 'Failed to add sale' });

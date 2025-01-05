@@ -29,8 +29,11 @@ const formSchema = z.object({
   carId: z.string().min(1, 'Car is required'),
   description: z.string().min(1, 'Description is required'),
   cost: z.string().min(1, 'Cost is required'),
-  mechanic: z.string().min(1, 'Mechanic name is required'),
+  mechanicName: z.string().min(1, 'Mechanic name is required'),
   date: z.string().min(1, 'Date is required'),
+  serviceProviderName: z.string().min(1, 'Service provider name is required'),
+  serviceProviderContact: z.string().min(1, 'Service provider contact is required'),
+  serviceProviderAddress: z.string().min(1, 'Service provider address is required')
 });
 
 export function AddRepair() {
@@ -53,8 +56,13 @@ export function AddRepair() {
         carId: values.carId,
         description: values.description,
         cost: Number(values.cost),
-        mechanicName: values.mechanic,
+        mechanicName: values.mechanicName,
         repairDate: values.date,
+        serviceProvider: {
+          name: values.serviceProviderName,
+          contact: values.serviceProviderContact,
+          address: values.serviceProviderAddress
+        }
       });
 
       toast({
@@ -158,7 +166,7 @@ export function AddRepair() {
 
               <FormField
                 control={form.control}
-                name="mechanic"
+                name="mechanicName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Mechanic</FormLabel>
@@ -169,6 +177,50 @@ export function AddRepair() {
                   </FormItem>
                 )}
               />
+
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="serviceProviderName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Service Provider Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter service provider name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="serviceProviderContact"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Service Provider Contact</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter service provider contact" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="serviceProviderAddress"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Service Provider Address</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter service provider address" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <div className="flex flex-col gap-4 sm:flex-row sm:justify-end">
                 <Button

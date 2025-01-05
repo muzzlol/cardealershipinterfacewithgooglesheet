@@ -47,6 +47,10 @@ class ApiClient {
     return this.request<Repair[]>('/repairs');
   }
 
+  async getRepairsByCarId(carId: string): Promise<Repair[]> {
+    return this.request<Repair[]>(`/repairs?carId=${carId}`);
+  }
+
   async addRepair(repair: Omit<Repair, 'id'>): Promise<Repair> {
     return this.request<Repair>('/repairs', {
       method: 'POST',

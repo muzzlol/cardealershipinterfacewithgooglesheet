@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Table,
   TableBody,
@@ -9,40 +9,42 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { apiClient } from '@/lib/api-client';
+import { Repair } from '@/types';
 import { PageContainer } from '@/components/layout/page-container';
 
-interface Repair {
-  id: string;
-  carId: string;
-  date: string;
-  description: string;
-  cost: number;
-  mechanic: string;
-}
+export function RepairsList() {                                             
+  const [repairs, setRepairs] = useState<Repair[]>([]);
+  const [loading, setLoading] = useState(true);
 
-export function RepairsList() {
-  const [repairs] = useState<Repair[]>([
-    {
-      id: 'R001',
-      carId: 'C001',
-      date: '2024-01-01',
-      description: 'Oil change and filter replacement',
-      cost: 350,
-      mechanic: 'Ahmed',
-    },
-    {
-      id: 'R002',
-      carId: 'C002',
-      date: '2024-01-02',
-      description: 'Brake pad replacement',
-      cost: 800,
-      mechanic: 'Mohammed',
-    },
-  ]);
+  useEffect(() => {
+    loadRepairs();
+  }, []);
+
+  async function loadRepairs() {
+    try {
+      setLoading(true);
+      const data = await apiClient.getRepairs();
+      setRepairs(data);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load repairs',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+  const { toast } = useToast();
   
-  const navigate = useNavigate();
+  loading && (
+    <div className="flex h-[200px] items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
 
   return (
     <PageContainer>
@@ -54,10 +56,13 @@ export function RepairsList() {
               Track vehicle repairs and maintenance
             </p>
           </div>
-          <Button onClick={() => navigate('add')} className="sm:w-auto w-full">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Repair
-          </Button>
+
+          <Link to="/repairs">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Repair
+            </Button>
+          </Link>
         </div>
 
         <div className="rounded-lg border bg-card">
@@ -84,9 +89,9 @@ export function RepairsList() {
                   <TableRow key={repair.id}>
                     <TableCell className="font-medium">{repair.id}</TableCell>
                     <TableCell>{repair.carId}</TableCell>
-                    <TableCell>{new Date(repair.date).toLocaleDateString()}</TableCell>
+                    <TableCell>{new Date(repair.repairDate).toLocaleDateString()}</TableCell>
                     <TableCell>{repair.description}</TableCell>
-                    <TableCell>{repair.mechanic}</TableCell>
+                    <TableCell>{repair.mechanicName}</TableCell>
                     <TableCell className="text-right">
                       {repair.cost.toLocaleString()} SAR
                     </TableCell>

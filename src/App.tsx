@@ -13,7 +13,7 @@ function App() {
     <Router>
       <div className="min-h-screen w-full bg-background">
         <Navbar />
-        <main className="container mx-auto py-6">
+        <main className="container pt-14 mx-auto py-6">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/cars/*" element={<Cars />} />

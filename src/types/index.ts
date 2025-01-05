@@ -9,6 +9,14 @@ export interface Car {
   purchaseDate: string;
   currentStatus: 'Available' | 'Sold';
   condition: string;
+  sellerName: string;
+  sellerContact: string;
+  additionalCosts: {
+    transport?: number;
+    inspection?: number;
+    other?: number;
+  };
+  totalCost: number; // purchasePrice + all additional costs
 }
 
 export interface Repair {
@@ -18,6 +26,11 @@ export interface Repair {
   description: string;
   cost: number;
   mechanicName: string;
+  serviceProvider: {
+    name: string;
+    contact: string;
+    address: string;
+  };
 }
 
 export interface Sale {
@@ -28,7 +41,9 @@ export interface Sale {
   buyerName: string;
   buyerContactInfo: string; //email ya number
   profit: number;
-  paymentStatus: 'Paid' | 'Pending';
+  paymentStatus: 'Paid' | 'Pending' | 'Unpaid';
+  totalRepairCosts: number;
+  netProfit: number; // salePrice - totalCost - totalRepairCosts
 }
 
 export interface Partner {
@@ -40,4 +55,3 @@ export interface Partner {
   profitEarnedOverTime: number;
   role: string;
 }
-
