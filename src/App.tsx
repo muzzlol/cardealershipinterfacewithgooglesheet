@@ -7,25 +7,28 @@ import { Sales } from '@/pages/sales';
 import { Partners } from '@/pages/partners';
 import { Reports } from '@/pages/reports';
 import { Toaster } from '@/components/ui/toaster';
+import { ThemeProvider } from '@/components/theme-provider';
 
 function App() {
   return (
-    <Router>
-      <div className="min-h-screen w-screen bg-background">
-        <Navbar />
-        <div className="pt-14 w-full">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/cars/*" element={<Cars />} />
-            <Route path="/repairs/*" element={<Repairs />} />
-            <Route path="/sales/*" element={<Sales />} />
-            <Route path="/partners/*" element={<Partners />} />
-            <Route path="/reports" element={<Reports />} />
-          </Routes>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <Router>
+        <div className="min-h-screen w-screen bg-background text-foreground">
+          <Navbar />
+          <div className="pt-14 w-full">
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/cars/*" element={<Cars />} />
+              <Route path="/repairs/*" element={<Repairs />} />
+              <Route path="/sales/*" element={<Sales />} />
+              <Route path="/partners/*" element={<Partners />} />
+              <Route path="/reports" element={<Reports />} />
+            </Routes>
+          </div>
+          <Toaster />
         </div>
-        <Toaster />
-      </div>
-    </Router>
+      </Router>
+    </ThemeProvider>
   );
 }
 
