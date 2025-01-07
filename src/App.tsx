@@ -11,9 +11,9 @@ import { Toaster } from '@/components/ui/toaster';
 function App() {
   return (
     <Router>
-      <div className="min-h-screen w-full bg-background">
+      <div className="min-h-screen w-screen bg-background">
         <Navbar />
-        <main className="container pt-14 mx-auto py-6">
+        <div className="pt-14 w-full">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/cars/*" element={<Cars />} />
@@ -22,7 +22,7 @@ function App() {
             <Route path="/partners/*" element={<Partners />} />
             <Route path="/reports" element={<Reports />} />
           </Routes>
-        </main>
+        </div>
         <Toaster />
       </div>
     </Router>
