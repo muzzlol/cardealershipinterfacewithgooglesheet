@@ -15,7 +15,7 @@ import { apiClient } from '@/lib/api-client';
 import { CarActions } from './car-actions';
 import { useToast } from '@/components/ui/use-toast';
 import { PageContainer } from '@/components/layout/page-container';
-import { ScrollArea } from '@/components/ui/scroll-area';
+// import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function CarsList() {
   const [cars, setCars] = useState<Car[]>([]);
@@ -24,6 +24,15 @@ export function CarsList() {
 
   useEffect(() => {
     loadCars();
+  }, []);
+
+  // Refresh list when window regains focus (user returns from edit page)
+  useEffect(() => {
+    function onFocus() {
+      loadCars();
+    }
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, []);
 
   async function loadCars() {
@@ -44,7 +53,7 @@ export function CarsList() {
   if (loading) {
     return (
       <PageContainer>
-        <div className="flex h-[200px] items-center justify-center">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       </PageContainer>
@@ -52,9 +61,8 @@ export function CarsList() {
   }
 
   return (
-    <PageContainer>
-      <div className="space-y-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="w-full py-8 mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-4 md:flex-row justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Cars Inventory</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
@@ -62,14 +70,14 @@ export function CarsList() {
             </p>
           </div>
           <Link to="add">
-            <Button className="sm:w-auto w-full">
-              <Plus className="mr-2 h-4 w-4" />
+            <Button>
+              <Plus className="mr-4 h-4 w-4" />
               Add Car
             </Button>
           </Link>
         </div>
 
-        <div className="rounded-lg border bg-card">
+        <div className="rounded-lg border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -77,17 +85,19 @@ export function CarsList() {
                 <TableHead>Vehicle</TableHead>
                 <TableHead>Year</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Price</TableHead>
+                <TableHead>Purchase Price</TableHead>
+                <TableHead>Additional Costs</TableHead>
+                <TableHead>Total Cost</TableHead>
                 <TableHead>Purchase Date</TableHead>
                 <TableHead>Condition</TableHead>
+                <TableHead>Seller Info</TableHead>
                 <TableHead>Actions</TableHead>
-                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {cars.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={11} className="h-24 text-center">
                     No cars found.
                   </TableCell>
                 </TableRow>
@@ -102,33 +112,37 @@ export function CarsList() {
                         </div>
                         <div>
                           <div className="font-medium">{car.make} {car.model}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {car.color}
-                          </div>
+                          <div className="text-sm text-muted-foreground">{car.color}</div>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>{car.year}</TableCell>
                     <TableCell>
                       <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        car.currentStatus === 'Available' 
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-gray-100 text-gray-700'
+                        car.currentStatus === 'Available' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                       }`}>
                         {car.currentStatus}
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">
-                      {car.purchasePrice.toLocaleString()} SAR
+                    <TableCell>${car.purchasePrice.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div>Transport: ${car.additionalCosts.transport?.toLocaleString() ?? '0'}</div>
+                        <div>Inspection: ${car.additionalCosts.inspection?.toLocaleString() ?? '0'}</div>
+                        <div>Other: ${car.additionalCosts.other?.toLocaleString() ?? '0'}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>${car.totalCost.toLocaleString()}</TableCell>
+                    <TableCell>{new Date(car.purchaseDate).toLocaleDateString()}</TableCell>
+                    <TableCell>{car.condition}</TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div className="font-medium">{car.sellerName}</div>
+                        <div className="text-muted-foreground">{car.sellerContact}</div>
+                      </div>
                     </TableCell>
                     <TableCell>
-                      {car.purchaseDate.toString()}
-                    </TableCell>
-                    <TableCell>
-                      {car.condition}
-                    </TableCell>
-                    <TableCell>
-                      <CarActions car={car} onRefresh={loadCars} />
+                      <CarActions car={car} />
                     </TableCell>
                   </TableRow>
                 ))
@@ -136,7 +150,6 @@ export function CarsList() {
             </TableBody>
           </Table>
         </div>
-      </div>
-    </PageContainer>
+    </div>
   );
 }

@@ -5,22 +5,21 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Pencil, DollarSign } from 'lucide-react';
+import { MoreHorizontal, Pencil, DollarSign, WrenchIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Car } from '@/types';
 
 interface CarActionsProps {
   car: Car;
-  onRefresh: () => void;
 }
 
-export function CarActions({ car, onRefresh }: CarActionsProps) {
+export function CarActions({ car }: CarActionsProps) {
   const navigate = useNavigate();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
+        <Button variant="default" className="h-8 w-8 p-0">
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
@@ -30,6 +29,7 @@ export function CarActions({ car, onRefresh }: CarActionsProps) {
           Edit
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate(`/repairs/add?carId=${car.id}`)}>
+          <WrenchIcon className="mr-2 h-4 w-4" />
           Add Repair
         </DropdownMenuItem>
         {car.currentStatus === 'Available' && (

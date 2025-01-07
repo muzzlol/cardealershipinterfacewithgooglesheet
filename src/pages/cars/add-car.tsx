@@ -22,8 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PageContainer } from '@/components/layout/page-container';
 import { Loader2 } from 'lucide-react';
+import { PageContainer } from '@/components/layout/page-container';
 
 const formSchema = z.object({
   make: z.string().min(1, 'Make is required'),
@@ -59,6 +59,11 @@ export function AddCar() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setLoading(true);
+      const totalAdditionalCosts = 
+        (values.transportCost || 0) + 
+        (values.inspectionCost || 0) + 
+        (values.otherCost || 0);
+        
       await apiClient.addCar({
         make: values.make,
         model: values.model,
@@ -76,7 +81,7 @@ export function AddCar() {
           inspection: values.inspectionCost || 0,
           other: values.otherCost || 0
         },
-        totalCost: (values.transportCost || 0) + (values.inspectionCost || 0) + (values.otherCost || 0)
+        totalCost: values.purchasePrice + totalAdditionalCosts
       });
 
       toast({
@@ -89,9 +94,8 @@ export function AddCar() {
       toast({
         title: 'Error',
         description: 'Failed to add car. Please try again.',
+        variant: 'destructive'
       });
-
-      navigate('/cars');
     } finally {
       setLoading(false);
     }
@@ -99,7 +103,7 @@ export function AddCar() {
 
   return (
     <PageContainer>
-      <div className="space-y-8">
+      <div className="mx-auto max-w-3xl space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Add Car</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
@@ -109,259 +113,288 @@ export function AddCar() {
 
         <div className="rounded-lg border bg-card p-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="make"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Make</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Toyota" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <div className="space-y-8">
+                <div>
+                  <h2 className="text-lg font-semibold">Vehicle Information</h2>
+                  <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="make"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Make</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Toyota" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="model"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Model</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Camry" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="model"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Model</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Camry" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="year"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Year</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="2024" 
-                          {...field}
-                          onChange={e => field.onChange(parseInt(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="year"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Year</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="2024" 
+                              {...field}
+                              onChange={e => field.onChange(parseInt(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="color"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Color</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Silver" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="color"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Color</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Silver" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="registrationNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Registration Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="ABC123" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="registrationNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Registration Number</FormLabel>
+                          <FormControl>
+                            <Input placeholder="ABC123" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
 
-                <FormField
-                  control={form.control}
-                  name="purchasePrice"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Purchase Price</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="50000" 
-                          {...field}
-                          onChange={e => field.onChange(parseInt(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div>
+                  <h2 className="text-lg font-semibold">Purchase Information</h2>
+                  <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="purchasePrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Purchase Price</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="50000" 
+                              {...field}
+                              onChange={e => field.onChange(parseInt(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="purchaseDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Purchase Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="purchaseDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Purchase Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="currentStatus"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Available">Available</SelectItem>
-                          <SelectItem value="Sold">Sold</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="currentStatus"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Available">Available</SelectItem>
+                              <SelectItem value="Sold">Sold</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="condition"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Condition</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select condition" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="New">New</SelectItem>
-                          <SelectItem value="Used">Used</SelectItem>
-                          <SelectItem value="Certified Pre-Owned">Certified Pre-Owned</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="condition"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Condition</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select condition" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="New">New</SelectItem>
+                              <SelectItem value="Used">Used</SelectItem>
+                              <SelectItem value="Certified Pre-Owned">Certified Pre-Owned</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
 
-                <FormField
-                  control={form.control}
-                  name="sellerName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Seller Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter seller name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div>
+                  <h2 className="text-lg font-semibold">Additional Costs</h2>
+                  <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="transportCost"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Transport Cost</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="Enter transport cost" 
+                              {...field} 
+                              onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="sellerContact"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Seller Contact</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter seller contact" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="inspectionCost"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Inspection Cost</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="Enter inspection cost" 
+                              {...field}
+                              onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="transportCost"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Transport Cost</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="Enter transport cost" 
-                          {...field} 
-                          onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="otherCost"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Other Costs</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="Enter other costs" 
+                              {...field}
+                              onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
 
-                <FormField
-                  control={form.control}
-                  name="inspectionCost"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Inspection Cost</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="Enter inspection cost" 
-                          {...field}
-                          onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div>
+                  <h2 className="text-lg font-semibold">Seller Information</h2>
+                  <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="sellerName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Seller Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter seller name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="otherCost"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Other Costs</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="Enter other costs" 
-                          {...field}
-                          onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="sellerContact"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Seller Contact</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter seller contact" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="flex justify-end gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
+              <div className="flex justify-end space-x-4">
+                <Button 
+                  variant="outline" 
+                  type="button" 
                   onClick={() => navigate('/cars')}
-                  disabled={loading}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Add Car
+                <Button 
+                  type="submit" 
+                  disabled={loading}
+                  className="min-w-[120px]"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Car'
+                  )}
                 </Button>
               </div>
             </form>
