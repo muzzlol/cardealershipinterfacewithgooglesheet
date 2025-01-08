@@ -1,6 +1,16 @@
 const API_BASE_URL = 'http://localhost:3000/api';
 import { Car, Sale, Repair, Partner } from '@/types';
 
+interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    limit: number;
+  }
+}
+
 class ApiClient {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -19,8 +29,8 @@ class ApiClient {
   }
 
   // Cars
-  async getCars(): Promise<Car[]> {
-    return this.request<Car[]>('/cars');
+  async getCars(page : number = 1, limit : number = 1): Promise<PaginatedResponse<Car>> {
+    return this.request<PaginatedResponse<Car>>(`/cars?page=${page}&limit=${limit}`);
   }
 
   async addCar(car: Omit<Car, 'id'>): Promise<Car> {
