@@ -36,22 +36,31 @@ const RANGES = {
 
 // Helper function to generate IDs
 const generateId = (prefix: string, existingIds: string[]) => {
-  let counter = 1;
-  let newId = `${prefix}${String(counter).padStart(3, '0')}`;
-  while (existingIds.includes(newId)) {
-    counter++;
-    newId = `${prefix}${String(counter).padStart(3, '0')}`;
-  }
-  return newId;
+  let counter = existingIds.length > 0 
+    ? Math.max(...existingIds.map(id => parseInt(id.replace(prefix, '')) || 0)) + 1 
+    : 1;
+  return `${prefix}${counter}`;
 };
 
 // Cars endpoints
 app.get('/api/cars', async (req, res) => {
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10; // can do Math.min(parseInt(req.q.l as str) || 10, Maximum_limit) but dk if i should
+  const startRow = (page - 1) * limit + 2;
+  const endRow = startRow + limit - 1;
   try {
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: RANGES.CARS
-    });
+      const [response, countResponse] = await Promise.all([sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range : `Cars!A${startRow}:P${endRow}`
+      }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `Cars!A:A`
+      })
+    ]);
+
+    const totalItems = (countResponse.data.values?.length || 0) - 1;
+    const totalPages = Math.ceil(totalItems / limit);
     const cars = (response.data.values || []).map(row => ({
       id: row[0],
       make: row[1],
@@ -72,7 +81,15 @@ app.get('/api/cars', async (req, res) => {
       },
       totalCost: Number(row[15])
     }));
-    res.json(cars);
+    res.json({
+      data: cars,
+      pagination : {
+        currentPage : page,
+        totalPages,
+        totalItems,
+        limit
+      }
+    });
   } catch (error) {
     console.error('Error fetching cars:', error);
     res.status(500).json({ error: 'Failed to fetch cars' });
@@ -162,27 +179,29 @@ app.post('/api/cars', async (req, res) => {
 // Repairs endpoints
 app.get('/api/repairs', async (req, res) => {
   try {
+    const carId = req.query.carId;
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: RANGES.REPAIRS
     });
-    const repairs = (response.data.values || []).map(row => ({
-      id: row[0],
-      carId: row[1],
-      repairDate: row[2],
-      description: row[3],
-      cost: Number(row[4]),
-      mechanicName: row[5],
-      serviceProvider: {
-        name: row[6],
-        contact: row[7],
-        address: row[8]
-      }
-    }));
 
-    // Filter by carId if provided in query params
-    const { carId } = req.query;
-    const filteredRepairs = carId
+    const repairs = (response.data.values || [])
+      .map(row => ({
+        id: row[0],
+        carId: row[1],
+        repairDate: row[2],
+        description: row[3],
+        cost: Number(row[4]),
+        mechanicName: row[5],
+        serviceProvider: {
+          name: row[6],
+          contact: row[7],
+          address: row[8]
+        }
+      }));
+
+    // If carId is provided, filter repairs for that car
+    const filteredRepairs = carId 
       ? repairs.filter(repair => repair.carId === carId)
       : repairs;
 
