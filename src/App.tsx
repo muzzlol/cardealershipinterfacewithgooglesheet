@@ -4,7 +4,7 @@ import { Dashboard } from '@/pages/dashboard';
 import { Cars } from '@/pages/cars';
 import { Repairs } from '@/pages/repairs';
 import { Sales } from '@/pages/sales';
-import { Partners } from '@/pages/partners';
+import { Partners } from '@/pages/partners/partner-list';
 import { Reports } from '@/pages/reports';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
