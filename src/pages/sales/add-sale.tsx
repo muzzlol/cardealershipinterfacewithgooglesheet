@@ -62,8 +62,8 @@ export function AddSale() {
 
   const loadAvailableCars = async () => {
     try {
-      const data = await apiClient.getCars();
-      setCars(data.filter(car => car.currentStatus === 'Available'));
+      const response = await apiClient.getCars();
+      setCars(response.data.filter(car => car.currentStatus === 'Available'));
     } catch (error) {
       toast({
         title: 'Error',

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,8 +12,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -21,15 +19,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { PageContainer } from '@/components/layout/page-container';
 import { apiClient } from '@/lib/api-client';
 import { Loader2 } from 'lucide-react';
 
+interface Car {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
+  registrationNumber: string;
+}
+
 const formSchema = z.object({
   carId: z.string().min(1, 'Car is required'),
   description: z.string().min(1, 'Description is required'),
-  cost: z.number().positive('Cost must be positive'),
+  cost: z.string().transform((val) => Number(val)).pipe(z.number().positive('Cost must be positive')),
   mechanicName: z.string().min(1, 'Mechanic name is required'),
   repairDate: z.string().min(1, 'Date is required'),
   serviceProvider: z.object({
@@ -41,8 +49,26 @@ const formSchema = z.object({
 
 export function AddRepair() {
   const [loading, setLoading] = useState(false);
+  const [cars, setCars] = useState<Car[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchCars = async () => {
+      try {
+        const availableCars = await apiClient.getCars(1, 1000);
+        setCars(availableCars.data);
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch cars. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    };
+
+    fetchCars();
+  }, [toast]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -109,8 +135,11 @@ export function AddRepair() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="C001">Toyota Camry (2020)</SelectItem>
-                              <SelectItem value="C002">Honda Accord (2021)</SelectItem>
+                              {cars.map((car) => (
+                                <SelectItem key={car.id} value={car.id}>
+                                  {car.make} {car.model} ({car.year}) - {car.registrationNumber}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />

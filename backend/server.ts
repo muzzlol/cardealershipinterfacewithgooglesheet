@@ -178,13 +178,23 @@ app.post('/api/cars', async (req, res) => {
 
 // Repairs endpoints
 app.get('/api/repairs', async (req, res) => {
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  const startRow = (page - 1) * limit + 2; 
+  const endRow = startRow + limit - 1
   try {
     const carId = req.query.carId;
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: RANGES.REPAIRS
-    });
-
+    const [response, currentResponse] = await Promise.all([
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range : `Repairs!A${startRow}:I${endRow}`
+    }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range : `Repairs!A:A`
+      })
+    ]);
+    
     const repairs = (response.data.values || [])
       .map(row => ({
         id: row[0],

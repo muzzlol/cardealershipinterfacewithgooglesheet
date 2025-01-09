@@ -8,6 +8,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 import { Button } from '@/components/ui/button';
 import { Plus, Car as CarIcon, Loader2 } from 'lucide-react';
 import { Car } from '@/types';
@@ -19,14 +28,17 @@ import { PageContainer } from '@/components/layout/page-container';
 
 export function CarsList() {
   const [cars, setCars] = useState<Car[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(5);
+  const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     loadCars();
-  }, []);
+  }, [currentPage]);
 
-  // Refresh list when window regains focus (user returns from edit page)
+//  Refresh list when window regains focus (user returns from edit page)
   useEffect(() => {
     function onFocus() {
       loadCars();
@@ -38,8 +50,10 @@ export function CarsList() {
   async function loadCars() {
     try {
       setLoading(true);
-      const data = await apiClient.getCars();
-      setCars(data);
+      const response = await apiClient.getCars(currentPage, limit);
+      setCars(response.data);
+      setTotalPages(response.pagination.totalPages);
+      setLimit(response.pagination.limit);
     } catch (error) {
       toast({
         title: 'Error',
@@ -61,7 +75,7 @@ export function CarsList() {
   }
 
   return (
-    <div className="w-full py-8 mx-auto px-4 sm:px-6 lg:px-8">
+    <PageContainer>
         <div className="flex flex-col gap-4 md:flex-row justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Cars Inventory</h1>
@@ -150,6 +164,54 @@ export function CarsList() {
             </TableBody>
           </Table>
         </div>
-    </div>
+        <div className="mt-4 flex justify-center">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => currentPage > 1 && setCurrentPage(prev => prev - 1)}
+                  className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
+                />
+              </PaginationItem>
+              {[...Array(totalPages)].map((_, index) => {
+                const pageNumber = index + 1;
+                // Show first page, last page, and pages around current page
+                if (
+                  pageNumber === 1 ||
+                  pageNumber === totalPages ||
+                  (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                ) {
+                  return (
+                    <PaginationItem key={pageNumber}>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(pageNumber)}
+                        isActive={currentPage === pageNumber}
+                      >
+                        {pageNumber}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                } else if (
+                  pageNumber === currentPage - 2 ||
+                  pageNumber === currentPage + 2
+                ) {
+                  return (
+                    <PaginationItem key={pageNumber}>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  );
+                }
+                return null;
+              })}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => currentPage !== totalPages && setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+    </PageContainer>
   );
 }

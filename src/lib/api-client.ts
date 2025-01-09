@@ -29,7 +29,7 @@ class ApiClient {
   }
 
   // Cars
-  async getCars(page : number = 1, limit : number = 1): Promise<PaginatedResponse<Car>> {
+  async getCars(page : number, limit : number): Promise<PaginatedResponse<Car>> {
     return this.request<PaginatedResponse<Car>>(`/cars?page=${page}&limit=${limit}`);
   }
 
@@ -41,8 +41,8 @@ class ApiClient {
   }
 
   // Sales
-  async getSales(): Promise<Sale[]> {
-    return this.request<Sale[]>('/sales');
+  async getSales(page: number, limit: number): Promise<PaginatedResponse<Sale>> {
+    return this.request<PaginatedResponse<Sale>>(`/sales?page=${page}&limit=${limit}`);
   }
 
   async addSale(sale: Omit<Sale, 'id' | 'profit'>): Promise<Sale> {
@@ -53,8 +53,8 @@ class ApiClient {
   }
 
   // Repairs
-  async getRepairs(): Promise<Repair[]> {
-    return this.request<Repair[]>('/repairs');
+  async getRepairs(page: number, limit: number): Promise<PaginatedResponse<Repair>> {
+    return this.request<PaginatedResponse<Repair>>(`/repairs?page=${page}&limit=${limit}`);
   }
 
   async getRepairsByCarId(carId: string): Promise<Repair[]> {

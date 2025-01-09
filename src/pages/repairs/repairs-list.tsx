@@ -14,15 +14,19 @@ import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { Repair } from '@/types';
 import { PageContainer } from '@/components/layout/page-container';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis, PaginationPrevious, PaginationNext } from '@/components/ui/pagination';
 
 export function RepairsList() {
   const [repairs, setRepairs] = useState<Repair[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
   const { toast } = useToast();
 
   useEffect(() => {
     loadRepairs();
-  }, []);
+  }, [currentPage]);
 
   // Refresh list when window regains focus
   useEffect(() => {
@@ -36,8 +40,10 @@ export function RepairsList() {
   async function loadRepairs() {
     try {
       setLoading(true);
-      const data = await apiClient.getRepairs();
-      setRepairs(data);
+      const response = await apiClient.getRepairs(currentPage, limit);
+      setRepairs(response.data);
+      setTotalPages(response.pagination.totalPages);
+      setLimit(response.pagination.limit);
     } catch (error) {
       toast({
         title: 'Error',
@@ -60,7 +66,7 @@ export function RepairsList() {
   }
 
   return (
-    <div className="w-full py-8 mx-auto px-4 sm:px-6 lg:px-8">
+    <PageContainer>
       <div className="flex flex-col gap-4 md:flex-row justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Repairs</h1>
@@ -93,38 +99,85 @@ export function RepairsList() {
             {repairs.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center">No repairs recorded.</TableCell>
-                  No repairs recorded.
+              </TableRow>
+            ) : (
+              repairs.map((repair) => (
+                <TableRow key={repair.id}>
+                  <TableCell className="font-medium">{repair.id}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-full bg-secondary p-2">
+                        <Wrench className="h-4 w-4" />
+                      </div>
+                      <div className="font-medium">{repair.carId}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>{new Date(repair.repairDate).toLocaleDateString()}</TableCell>
+                  <TableCell>{repair.description}</TableCell>
+                  <TableCell>{repair.mechanicName}</TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      <div className="font-medium">{repair.serviceProvider.name}</div>
+                      <div className="text-muted-foreground">{repair.serviceProvider.contact}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    ${repair.cost.toLocaleString()}
+                  </TableCell>
                 </TableRow>
-              ) : (
-                repairs.map((repair) => (
-                  <TableRow key={repair.id}>
-                    <TableCell className="font-medium">{repair.id}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="rounded-full bg-secondary p-2">
-                          <Wrench className="h-4 w-4" />
-                        </div>
-                        <div className="font-medium">{repair.carId}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{new Date(repair.repairDate).toLocaleDateString()}</TableCell>
-                    <TableCell>{repair.description}</TableCell>
-                    <TableCell>{repair.mechanicName}</TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div className="font-medium">{repair.serviceProvider.name}</div>
-                        <div className="text-muted-foreground">{repair.serviceProvider.contact}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      ${repair.cost.toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
-    </div>
+
+      <div className="mt-4 flex justify-center">
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious 
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+              />
+            </PaginationItem>
+            {[...Array(totalPages)].map((_, index) => {
+              const pageNumber = index + 1;
+              if (
+                pageNumber === 1 ||
+                pageNumber === totalPages ||
+                (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+              ) {
+                return (
+                  <PaginationItem key={pageNumber}>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(pageNumber)}
+                      isActive={currentPage === pageNumber}
+                    >
+                      {pageNumber}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              } else if (
+                pageNumber === currentPage - 2 ||
+                pageNumber === currentPage + 2
+              ) {
+                return (
+                  <PaginationItem key={pageNumber}>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                );
+              }
+              return null;
+            })}
+            <PaginationItem>
+              <PaginationNext
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      </div>
+    </PageContainer>
   );
 }
