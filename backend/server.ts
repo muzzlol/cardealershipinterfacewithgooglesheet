@@ -7,6 +7,111 @@ import { fileURLToPath } from 'url';
 
 dotenv.config();
 
+// Types and Interfaces
+interface PaginationParams {
+  page: number;
+  limit: number;
+}
+
+interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    limit: number;
+  };
+}
+
+interface AdditionalCosts {
+  transport?: number;
+  inspection?: number;
+  other?: number;
+}
+
+interface ServiceProvider {
+  name: string;
+  contact: string;
+  address: string;
+}
+
+interface Car {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
+  color: string;
+  registrationNumber: string;
+  purchasePrice: number;
+  purchaseDate: string;
+  currentStatus: 'Available' | 'Sold';
+  condition: string;
+  sellerName: string;
+  sellerContact: string;
+  additionalCosts: AdditionalCosts;
+  totalCost: number;
+}
+
+interface Repair {
+  id: string;
+  carId: string;
+  repairDate: string;
+  description: string;
+  cost: number;
+  mechanicName: string;
+  serviceProvider: ServiceProvider;
+}
+
+interface Sale {
+  id: string;
+  carId: string;
+  saleDate: string;
+  salePrice: number;
+  buyerName: string;
+  buyerContactInfo: string;
+  profit: number;
+  paymentStatus: string;
+  totalRepairCosts: number;
+  netProfit: number;
+}
+
+// Validation utilities
+const validatePaginationParams = (query: any): PaginationParams => {
+  const page = Math.max(1, parseInt(query.page as string) || 1);
+  const limit = Math.min(Math.max(1, parseInt(query.limit as string) || 10), 1000); // Max 50 items per page
+  return { page, limit };
+};
+
+const validateEnvironmentVariables = () => {
+  const required = ['SPREADSHEET_ID'];
+  const missing = required.filter(key => !process.env[key]);
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  }
+};
+
+// Helper function for sheet operations
+const getSheetRange = (range: string, startRow: number, endRow: number, columns: string) => {
+  return `${range}!A${startRow}:${columns}${endRow}`;
+};
+
+const createPaginatedResponse = <T>(
+  data: T[],
+  page: number,
+  limit: number,
+  totalItems: number
+): PaginatedResponse<T> => {
+  return {
+    data,
+    pagination: {
+      currentPage: page,
+      totalPages: Math.ceil(totalItems / limit),
+      totalItems,
+      limit,
+    },
+  };
+};
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -26,6 +131,8 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets({ version: 'v4', auth });
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 
+validateEnvironmentVariables();
+
 // Updated Sheet ranges to include all necessary columns
 const RANGES = {
   CARS: 'Cars!A2:P',        // Columns A to P
@@ -43,15 +150,38 @@ const generateId = (prefix: string, existingIds: string[]) => {
 };
 
 // Cars endpoints
+app.get('/api/cars/available', async (req, res) => {
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: RANGES.CARS
+    });
+
+    const cars = (response.data.values || [])
+      .filter(row => row[8] === 'Available') // Filter by status
+      .map(row => ({
+        id: row[0],
+        make: row[1],
+        model: row[2],
+        year: Number(row[3]),
+        registrationNumber: row[5],
+      }));
+
+    res.json(cars);
+  } catch (error) {
+    console.error('Error fetching available cars:', error);
+    res.status(500).json({ error: 'Failed to fetch available cars' });
+  }
+});
+
 app.get('/api/cars', async (req, res) => {
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 10; // can do Math.min(parseInt(req.q.l as str) || 10, Maximum_limit) but dk if i should
+  const { page, limit } = validatePaginationParams(req.query);
   const startRow = (page - 1) * limit + 2;
   const endRow = startRow + limit - 1;
   try {
       const [response, countResponse] = await Promise.all([sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range : `Cars!A${startRow}:P${endRow}`
+        range : getSheetRange('Cars', startRow, endRow, 'P')
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
@@ -60,7 +190,6 @@ app.get('/api/cars', async (req, res) => {
     ]);
 
     const totalItems = (countResponse.data.values?.length || 0) - 1;
-    const totalPages = Math.ceil(totalItems / limit);
     const cars = (response.data.values || []).map(row => ({
       id: row[0],
       make: row[1],
@@ -81,15 +210,7 @@ app.get('/api/cars', async (req, res) => {
       },
       totalCost: Number(row[15])
     }));
-    res.json({
-      data: cars,
-      pagination : {
-        currentPage : page,
-        totalPages,
-        totalItems,
-        limit
-      }
-    });
+    res.json(createPaginatedResponse(cars, page, limit, totalItems));
   } catch (error) {
     console.error('Error fetching cars:', error);
     res.status(500).json({ error: 'Failed to fetch cars' });
@@ -178,8 +299,7 @@ app.post('/api/cars', async (req, res) => {
 
 // Repairs endpoints
 app.get('/api/repairs', async (req, res) => {
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 10;
+  const { page, limit } = validatePaginationParams(req.query);
   const startRow = (page - 1) * limit + 2; 
   const endRow = startRow + limit - 1
   try {
@@ -187,13 +307,13 @@ app.get('/api/repairs', async (req, res) => {
     const [response, currentResponse] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range : `Repairs!A${startRow}:I${endRow}`
+        range : getSheetRange('Repairs', startRow, endRow, 'I')
     }),
-      sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range : `Repairs!A:A`
-      })
-    ]);
+    sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range : `Repairs!A:A`
+    })
+  ]);
     
     const repairs = (response.data.values || [])
       .map(row => ({
@@ -215,7 +335,8 @@ app.get('/api/repairs', async (req, res) => {
       ? repairs.filter(repair => repair.carId === carId)
       : repairs;
 
-    res.json(filteredRepairs);
+    const totalItems = (currentResponse.data.values?.length || 0) - 1;
+    res.json(createPaginatedResponse(filteredRepairs, page, limit, totalItems));
   } catch (error) {
     console.error('Error fetching repairs:', error);
     res.status(500).json({ error: 'Failed to fetch repairs' });
@@ -279,11 +400,22 @@ app.post('/api/repairs', async (req, res) => {
 
 // Sales endpoints
 app.get('/api/sales', async (req, res) => {
+  const { page, limit } = validatePaginationParams(req.query);
+  const startRow = (page - 1) * limit + 2;
+  const endRow = startRow + limit - 1;
   try {
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: RANGES.SALES
-    });
+    const [response, countResponse] = await Promise.all([
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: getSheetRange('Sales', startRow, endRow, 'J')
+      }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'Sales!A:A'
+      })
+    ]);
+
+    const totalItems = (countResponse.data.values?.length || 0) - 1;
     const sales = (response.data.values || []).map(row => ({
       id: row[0],
       carId: row[1],
@@ -296,7 +428,8 @@ app.get('/api/sales', async (req, res) => {
       totalRepairCosts: Number(row[8]),
       netProfit: Number(row[9])
     }));
-    res.json(sales);
+
+    res.json(createPaginatedResponse(sales, page, limit, totalItems));
   } catch (error) {
     console.error('Error fetching sales:', error);
     res.status(500).json({ error: 'Failed to fetch sales' });
@@ -314,6 +447,13 @@ app.post('/api/sales', async (req, res) => {
       paymentStatus
     } = req.body;
 
+    // Validate required fields
+    const requiredFields = ['carId', 'saleDate', 'salePrice', 'buyerName', 'buyerContactInfo', 'paymentStatus'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    if (missingFields.length > 0) {
+      return res.status(400).json({ error: `Missing required fields: ${missingFields.join(', ')}` });
+    }
+
     // Get car details to retrieve totalCost
     const carResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -323,6 +463,12 @@ app.post('/api/sales', async (req, res) => {
     if (!carRow) {
       return res.status(404).json({ error: 'Car not found' });
     }
+
+    // Check if car is already sold
+    if (carRow[8] === 'Sold') {
+      return res.status(400).json({ error: 'Car is already sold' });
+    }
+
     const totalCost = Number(carRow[15]); // Column P
 
     // Get total repair costs for the car
@@ -334,7 +480,8 @@ app.post('/api/sales', async (req, res) => {
       .filter(row => row[1] === carId)
       .reduce((sum, row) => sum + Number(row[4]), 0); // Column E: Repair Cost
 
-    const netProfit = salePrice - totalCost - totalRepairCosts;
+    const grossProfit = salePrice - totalCost;
+    const netProfit = grossProfit - totalRepairCosts;
 
     // Generate new sale ID
     const salesResponse = await sheets.spreadsheets.values.get({
@@ -351,7 +498,7 @@ app.post('/api/sales', async (req, res) => {
       salePrice,
       buyerName,
       buyerContactInfo,
-      netProfit,          // Profit
+      grossProfit,        // Profit (gross)
       paymentStatus,
       totalRepairCosts,
       netProfit           // Net Profit
@@ -386,7 +533,7 @@ app.post('/api/sales', async (req, res) => {
       salePrice,
       buyerName,
       buyerContactInfo,
-      profit: netProfit,
+      profit: grossProfit,
       paymentStatus,
       totalRepairCosts,
       netProfit
@@ -400,30 +547,31 @@ app.post('/api/sales', async (req, res) => {
 // Dashboard endpoints
 app.get('/api/dashboard', async (req, res) => {
   try {
-    const [carsResponse, salesResponse, repairsResponse] = await Promise.all([
+    // Only get the necessary columns for metrics
+    const [carsStatusResponse, salesProfitResponse, recentRepairsResponse, recentSalesResponse] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: RANGES.CARS
+        range: 'Cars!A2:I'  // Only need ID and status columns
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: RANGES.SALES
+        range: 'Sales!G2:G'  // Only need profit column
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: RANGES.REPAIRS
+        range: getSheetRange('Repairs', 2, 6, 'I')  // Get last 5 repairs
+      }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: getSheetRange('Sales', 2, 6, 'J')  // Get last 5 sales
       })
     ]);
 
-    const cars = carsResponse.data.values || [];
-    const sales = salesResponse.data.values || [];
-    const repairs = repairsResponse.data.values || [];
-
     const metrics = {
-      totalCars: cars.length,
-      availableCars: cars.filter(car => car[8] === 'Available').length, // Column I: Current Status
-      totalProfit: sales.reduce((sum, sale) => sum + Number(sale[6]), 0), // Column G: Profit
-      recentRepairs: repairs.slice(-5).map(row => ({
+      totalCars: (carsStatusResponse.data.values || []).length,
+      availableCars: (carsStatusResponse.data.values || []).filter(car => car[8] === 'Available').length,
+      totalProfit: (salesProfitResponse.data.values || []).reduce((sum, [profit]) => sum + Number(profit), 0),
+      recentRepairs: (recentRepairsResponse.data.values || []).map(row => ({
         id: row[0],
         carId: row[1],
         repairDate: row[2],
@@ -435,8 +583,8 @@ app.get('/api/dashboard', async (req, res) => {
           contact: row[7],
           address: row[8]
         }
-      })),
-      recentSales: sales.slice(-5).map(row => ({
+      })).reverse(),
+      recentSales: (recentSalesResponse.data.values || []).map(row => ({
         id: row[0],
         carId: row[1],
         saleDate: row[2],
@@ -447,7 +595,7 @@ app.get('/api/dashboard', async (req, res) => {
         paymentStatus: row[7],
         totalRepairCosts: Number(row[8]),
         netProfit: Number(row[9])
-      }))
+      })).reverse()
     };
 
     res.json(metrics);
