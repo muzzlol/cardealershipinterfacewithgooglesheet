@@ -56,12 +56,12 @@ export function AddRepair() {
   useEffect(() => {
     const fetchCars = async () => {
       try {
-        const availableCars = await apiClient.getCars(1, 1000);
-        setCars(availableCars.data);
+        const availableCars = await apiClient.getAvailableCars();
+        setCars(availableCars);
       } catch (error) {
         toast({
           title: 'Error',
-          description: 'Failed to fetch cars. Please try again.',
+          description: 'Failed to fetch available cars. Please try again.',
           variant: 'destructive',
         });
       }

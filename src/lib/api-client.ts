@@ -29,6 +29,11 @@ class ApiClient {
   }
 
   // Cars
+
+  async getAvailableCars(): Promise<Pick<Car, 'id' | 'make' | 'model' | 'year' | 'registrationNumber'>[]> {
+    return this.request('/cars/available');
+  }
+
   async getCars(page : number, limit : number): Promise<PaginatedResponse<Car>> {
     return this.request<PaginatedResponse<Car>>(`/cars?page=${page}&limit=${limit}`);
   }

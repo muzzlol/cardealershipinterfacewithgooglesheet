@@ -96,7 +96,7 @@ export function RepairsList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {repairs.length === 0 ? (
+            {!repairs || repairs.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center">No repairs recorded.</TableCell>
               </TableRow>
