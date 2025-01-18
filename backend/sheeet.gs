@@ -1,6 +1,5 @@
 /**
  * Creates the initial structure of the Google Sheet with tabs, headers, and formulas.
- * Adds checks for existing data and prompts the user before overwriting.
  */
 function setupGoogleSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -105,7 +104,7 @@ function addFormulasToSheet(sheetTab, tabName) {
     const totalCostFormula = `=IF(OR(G2="", M2="", N2="", O2=""), "", SUM(G2, M2:O2))`;
     sheetTab.getRange("P2:P").setFormula(totalCostFormula);
 
-    // Current Status formula (check for empty Car ID)
+    // Current Status formula
     const currentStatusFormula = `=IF(A2="", "", IFERROR(
       IFS(
         COUNTIF(Sales!B:B, A2) > 0, "Sold",
@@ -121,16 +120,14 @@ function addFormulasToSheet(sheetTab, tabName) {
     sheetTab.getRange("U2:U").setFormula(roiFormula);
 
     // Partner Returns formula
-    const partnerReturnsFormula = `=IF(A2="", "",
+    const partnerReturnsFormula = `=IF(A2="", "", 
     IFERROR(
-      TEXTJOIN(",", TRUE,
+      TEXTJOIN(",", TRUE, 
         ARRAYFORMULA(
-          VALUE(
-            SPLIT(T2, ",")
-          ) * U2
+          VALUE(SPLIT(T2, ",")) * U2
         )
       ),
-      ""  // Default value if SPLIT or VLOOKUP results in an error
+      ""
     )
   )`;
     sheetTab.getRange("V2:V").setFormula(partnerReturnsFormula);
@@ -149,25 +146,22 @@ function addFormulasToSheet(sheetTab, tabName) {
     sheetTab.getRange("J2:J").setFormula(netProfitFormula);
 
   } else if (tabName === "Partners") {
-    // Assuming G2 will have the total net profit from Sales sheet
     sheetTab.getRange("G2").setFormula(`=SUM(Sales!J:J)`);
 
-    // Partner Net Profit (SAR) for each partner
-    const netProfitFormula = `=IF(C2="", "", SUM(
-      ARRAYFORMULA(
-        IFERROR(
-          SPLIT(VLOOKUP(FILTER(Cars!A:A,Cars!I:I="Sold"),Cars!A:V,20,FALSE),",") * FILTER(Cars!V:V,Cars!A:A=FILTER(Cars!A:A,Cars!I:I="Sold")),
-          0  // Default value of 0 if SPLIT or VLOOKUP results in an error
-        )
-      )
-    ) + SUM(
-      ARRAYFORMULA(
-        IFERROR(
-          SPLIT(VLOOKUP(FILTER(Cars!A:A,Cars!I:I="On Rent"),Cars!A:V,20,FALSE),",") * FILTER(Cars!V:V,Cars!A:A=FILTER(Cars!A:A,Cars!I:I="On Rent")),
-          0  // Default value of 0 if SPLIT or VLOOKUP results in an error
-        )
-      )
-    ))`;
+    // Partner Net Profit (SAR) formula
+    const netProfitFormula = `=IF(A2="", "",
+    IFERROR(
+      SUMPRODUCT(
+        SPLIT(VLOOKUP(FILTER(Cars!A:A, Cars!I:I="Sold"), Cars!A:V, 20, FALSE), ","),
+        SPLIT(VLOOKUP(FILTER(Cars!A:A, Cars!I:I="Sold"), Cars!A:V, 22, FALSE), ",")
+      ) +
+      SUMPRODUCT(
+        SPLIT(VLOOKUP(FILTER(Cars!A:A, Cars!I:I="On Rent"), Cars!A:V, 20, FALSE), ","),
+        SPLIT(VLOOKUP(FILTER(Cars!A:A, Cars!I:I="On Rent"), Cars!A:V, 22, FALSE), ",")
+      ),
+      0
+    )
+  )`;
     sheetTab.getRange("E2:E").setFormula(netProfitFormula);
 
   } else if (tabName === "Rentals") {
