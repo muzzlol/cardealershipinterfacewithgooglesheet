@@ -1,5 +1,6 @@
 /**
  * Creates the initial structure of the Google Sheet with tabs, headers, and formulas.
+ * Adds checks for existing data and prompts the user before overwriting.
  */
 function setupGoogleSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -14,7 +15,7 @@ function setupGoogleSheet() {
       "Transport Cost (SAR)", "Inspection Cost (SAR)",
       "Other Cost (SAR)", "Total Cost (SAR)",
       "Location", "Documents", "Photo", "Investment Split",
-      "ROI", "Partner Returns"
+      "Profit/Loss", "Partner Returns"
     ],
     "Repairs": [
       "Repair ID", "Car ID", "Repair Date",
@@ -30,8 +31,7 @@ function setupGoogleSheet() {
       "Net Profit (SAR)"
     ],
     "Partners": [
-      "Partner ID", "Name", "Share (%)",
-      "Contact Info", "Partner Net Profit (SAR)",
+      "Partner ID", "Name", "Contact Info", "Partner Net Profit (SAR)",
       "Role"
     ],
     "Rentals": [
@@ -104,7 +104,7 @@ function addFormulasToSheet(sheetTab, tabName) {
     const totalCostFormula = `=IF(OR(G2="", M2="", N2="", O2=""), "", SUM(G2, M2:O2))`;
     sheetTab.getRange("P2:P").setFormula(totalCostFormula);
 
-    // Current Status formula
+    // Current Status formula (check for empty Car ID)
     const currentStatusFormula = `=IF(A2="", "", IFERROR(
       IFS(
         COUNTIF(Sales!B:B, A2) > 0, "Sold",
@@ -115,14 +115,14 @@ function addFormulasToSheet(sheetTab, tabName) {
     ))`;
     sheetTab.getRange("I2:I").setFormula(currentStatusFormula);
 
-    // ROI formula
-    const roiFormula = `=IF(A2="", "", P2 + SUMIF(Repairs!B:B, A2, Repairs!E:E) - SUMIF(Rentals!B:B, A2, Rentals!J:J) - IFERROR(VLOOKUP(A2, Sales!B:D, 3, FALSE), 0))`;
-    sheetTab.getRange("U2:U").setFormula(roiFormula);
+    // Profit/Loss formula
+    const profitLossFormula = `=IF(A2="", "", P2 + SUMIF(Repairs!B:B, A2, Repairs!E:E) - SUMIF(Rentals!B:B, A2, Rentals!J:J) - IFERROR(VLOOKUP(A2, Sales!B:D, 3, FALSE), 0))`;
+    sheetTab.getRange("U2:U").setFormula(profitLossFormula);
 
     // Partner Returns formula
-    const partnerReturnsFormula = `=IF(A2="", "", 
+    const partnerReturnsFormula = `=IF(A2="", "",
     IFERROR(
-      TEXTJOIN(",", TRUE, 
+      TEXTJOIN(",", TRUE,
         ARRAYFORMULA(
           VALUE(SPLIT(T2, ",")) * U2
         )
@@ -146,23 +146,19 @@ function addFormulasToSheet(sheetTab, tabName) {
     sheetTab.getRange("J2:J").setFormula(netProfitFormula);
 
   } else if (tabName === "Partners") {
-    sheetTab.getRange("G2").setFormula(`=SUM(Sales!J:J)`);
+    // Partner Net Profit Formulas
+    
+    // Partner 1 (D2) - Sums the first value from each row in 'Partner Returns'
+    const netProfitFormulaPartner1 = `=SUM(ARRAYFORMULA(IFERROR(VALUE(INDEX(SPLIT(Cars!V:V, ","), , 1)), 0)))`;
+    sheetTab.getRange("D2").setFormula(netProfitFormulaPartner1);
 
-    // Partner Net Profit (SAR) formula
-    const netProfitFormula = `=IF(A2="", "",
-    IFERROR(
-      SUMPRODUCT(
-        SPLIT(VLOOKUP(FILTER(Cars!A:A, Cars!I:I="Sold"), Cars!A:V, 20, FALSE), ","),
-        SPLIT(VLOOKUP(FILTER(Cars!A:A, Cars!I:I="Sold"), Cars!A:V, 22, FALSE), ",")
-      ) +
-      SUMPRODUCT(
-        SPLIT(VLOOKUP(FILTER(Cars!A:A, Cars!I:I="On Rent"), Cars!A:V, 20, FALSE), ","),
-        SPLIT(VLOOKUP(FILTER(Cars!A:A, Cars!I:I="On Rent"), Cars!A:V, 22, FALSE), ",")
-      ),
-      0
-    )
-  )`;
-    sheetTab.getRange("E2:E").setFormula(netProfitFormula);
+    // Partner 2 (D3) - Sums the second value
+    const netProfitFormulaPartner2 = `=SUM(ARRAYFORMULA(IFERROR(VALUE(INDEX(SPLIT(Cars!V:V, ","), , 2)), 0)))`;
+    sheetTab.getRange("D3").setFormula(netProfitFormulaPartner2);
+
+    // Partner 3 (D4) - Sums the third value
+    const netProfitFormulaPartner3 = `=SUM(ARRAYFORMULA(IFERROR(VALUE(INDEX(SPLIT(Cars!V:V, ","), , 3)), 0)))`;
+    sheetTab.getRange("D4").setFormula(netProfitFormulaPartner3);
 
   } else if (tabName === "Rentals") {
     // Days Left formula
@@ -215,9 +211,9 @@ function seedDummyData(ss) {
       ["S4", "C8", "2025-01-14", 81600, "Azam", "502156404", null, "Paid", null, null]
     ],
     "Partners": [
-      ["P1", "Mohammed Azam Khan", "33.33", "azam.zamk@gmail.com", null, "Investor"],
-      ["P2", "Mohammed Imran", "33.33", "imran@example.com", null, "Investor"],
-      ["P3", "Mohammed Ali Khan", "33.34", "ali@example.com", null, "Investor"]
+      ["P1", "Mohammed Azam Khan","azam.zamk@gmail.com", null, "Investor"],
+      ["P2", "Mohammed Imran","imran@example.com", null, "Investor"],
+      ["P3", "Mohammed Ali Khan", "ali@example.com", null, "Investor"]
     ],
     "Rentals": [
       ["RN1", "C2", "Customer A", "501112222", "2024-01-15", "2025-01-20", null, null, 250, null, null, null, null, null, null],
