@@ -7,15 +7,13 @@ export interface Car {
   registrationNumber: string;
   purchasePrice: number;
   purchaseDate: string;
-  currentStatus: 'Available' | 'Sold';
+  currentStatus: 'Available' | 'Sold' | 'On Rent';
   condition: string;
   sellerName: string;
   sellerContact: string;
-  additionalCosts: {
-    transport?: number;
-    inspection?: number;
-    other?: number;
-  };
+  transportCost: number;
+  inspectionCost: number;
+  otherCost: number;
   totalCost: number;
   location: string;
   documents: string;
