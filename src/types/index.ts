@@ -16,7 +16,13 @@ export interface Car {
     inspection?: number;
     other?: number;
   };
-  totalCost: number; // purchasePrice + all additional costs
+  totalCost: number;
+  location: string;
+  documents: string;
+  photo: string;
+  investmentSplit: string;
+  profitLoss: number;
+  partnerReturns: string;
 }
 
 export interface Repair {
@@ -41,17 +47,33 @@ export interface Sale {
   buyerName: string;
   buyerContactInfo: string; //email ya number
   profit: number;
-  paymentStatus: 'Paid' | 'Pending' | 'Unpaid';
+  paymentStatus: 'Paid' | 'Unpaid';
   totalRepairCosts: number;
-  netProfit: number; // salePrice - totalCost - totalRepairCosts
+  netProfit: number;
 }
 
 export interface Partner {
   id: string;
   name: string;
-  sharePercentage: number;
   contactInfo: string;
   netProfit: number;
-  profitEarnedOverTime: number;
   role: string;
+}
+
+export interface Rental {
+  id: string;
+  carId: string;
+  customerName: string;
+  customerContact: string;
+  startDate: string;
+  returnDate: string;
+  daysLeft: number;
+  daysOut: number;
+  dailyRate: number;
+  totalRentEarned: number;
+  damageFee: number;
+  lateFee: number;
+  otherFee: number;
+  additionalCostsDescription: string;
+  rentalStatus: 'Active' | 'Completed';
 }

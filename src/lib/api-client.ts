@@ -30,7 +30,7 @@ class ApiClient {
 
   // Cars
 
-  async getAvailableCars(): Promise<Pick<Car, 'id' | 'make' | 'model' | 'year' | 'registrationNumber'>[]> {
+  async getAvailableCars(): Promise<Car[]> {
     return this.request('/cars/available');
   }
 
