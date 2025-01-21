@@ -4,6 +4,8 @@ import { google } from 'googleapis';
 import path from 'path';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
+import multer from 'multer';
+import { createOrGetFolder, uploadFile, deleteFile } from './drive-service.js';
 
 dotenv.config();
 
@@ -83,12 +85,35 @@ validateEnvironmentVariables();
 
 // Updated Sheet ranges to include all necessary columns
 const RANGES = {
-  CARS: 'Cars!A2:V',        // Columns A to V
-  REPAIRS: 'Repairs!A2:I',  // Columns A to I
-  SALES: 'Sales!A2:J',      // Columns A to J
-  PARTNERS: 'Partners!A2:E', // Columns A to E
-  RENTALS: 'Rentals!A2:O',  // Columns A to O
+  CARS: 'Cars!A2:V',        // 22 columns (A to V)
+  REPAIRS: 'Repairs!A2:I',  // 9 columns (A to I)
+  SALES: 'Sales!A2:J',      // 10 columns (A to J)
+  PARTNERS: 'Partners!A2:E', // 5 columns (A to E)
+  RENTALS: 'Rentals!A2:O',  // 15 columns (A to O)
 };
+
+// Configure multer for file uploads
+const upload = multer({ 
+  dest: 'uploads/',
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  }
+});
+
+// Initialize Drive folders
+let documentsFolderId: string;
+let photosFolderId: string;
+
+async function initializeDriveFolders() {
+  try {
+    documentsFolderId = await createOrGetFolder('CarDealership_Documents');
+    photosFolderId = await createOrGetFolder('CarDealership_Photos');
+  } catch (error) {
+    console.error('Error initializing Drive folders:', error);
+  }
+}
+
+initializeDriveFolders();
 
 // Fetch all data 
 app.get('/api/data', async (req, res) => {
@@ -124,7 +149,7 @@ const generateId = (prefix: string, existingIds: string[]) => {
   return `${prefix}${counter}`;
 };
 
-// Cars endpoints
+// fethcing avaliable and on rent cars for helping with forms
 app.get('/api/cars/available', async (req, res) => {
   try {
     const response = await sheets.spreadsheets.values.get({
@@ -133,14 +158,17 @@ app.get('/api/cars/available', async (req, res) => {
     });
 
     const cars = (response.data.values || [])
-      .filter(row => row[8] !== 'Sold') // Filter by status
+      .filter(row => row[8] !== 'Available') 
       .map(row => ({
         id: row[0],
         make: row[1],
         model: row[2],
         year: Number(row[3]),
+        color: row[4],
         registrationNumber: row[5],
         currentStatus: row[8],
+        condition: row[9],
+        location: row[16]
       }));
 
     res.json(cars);
@@ -149,6 +177,8 @@ app.get('/api/cars/available', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch available cars' });
   }
 });
+
+// CARS ENDPOINTS
 
 app.get('/api/cars', async (req, res) => {
   const { page, limit } = validatePaginationParams(req.query);
@@ -197,7 +227,10 @@ app.get('/api/cars', async (req, res) => {
   }
 });
 
-app.post('/api/cars', async (req, res) => {
+app.post('/api/cars', upload.fields([
+  { name: 'documents', maxCount: 1 },
+  { name: 'photo', maxCount: 1 }
+]), async (req, res) => {
   try {
     const {
       make,
@@ -207,14 +240,23 @@ app.post('/api/cars', async (req, res) => {
       registrationNumber,
       purchasePrice,
       purchaseDate,
-      currentStatus,
       condition,
       sellerName,
       sellerContact,
-      additionalCosts,
-      
-
+      transportCost,
+      inspectionCost,
+      otherCost,
+      location,
+      investmentSplit
     } = req.body;
+
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    
+    // Upload files to Google Drive
+    const documentsUrl = files.documents ? 
+      await uploadFile(files.documents[0], documentsFolderId, 'document') : '';
+    const photoUrl = files.photo ? 
+      await uploadFile(files.photo[0], photosFolderId, 'photo') : '';
 
     // Get existing cars to generate new ID
     const response = await sheets.spreadsheets.values.get({
@@ -237,14 +279,14 @@ app.post('/api/cars', async (req, res) => {
       condition,
       sellerName,
       sellerContact,
-      additionalCosts?.transport || '',
-      additionalCosts?.inspection || '',
-      additionalCosts?.other || '',
+      transportCost || '',
+      inspectionCost || '',
+      otherCost || '',
       '', // totalCost (formula-driven)
-      req.body.location || '',
-      req.body.documents || '',
-      req.body.photo || '',
-      req.body.investmentSplit || '',
+      location || '',
+      documentsUrl,
+      photoUrl,
+      investmentSplit || '',
       '', // profitLoss (formula-driven)
       ''  // partnerReturns (formula-driven)
     ];
@@ -267,12 +309,17 @@ app.post('/api/cars', async (req, res) => {
       registrationNumber,
       purchasePrice,
       purchaseDate,
-      currentStatus,
+      currentStatus: 'Available',
       condition,
       sellerName,
       sellerContact,
-      additionalCosts,
-      totalCost
+      transportCost,
+      inspectionCost,
+      otherCost,
+      location,
+      documents: documentsUrl,
+      photo: photoUrl,
+      investmentSplit
     });
   } catch (error) {
     console.error('Error adding car:', error);
@@ -281,50 +328,92 @@ app.post('/api/cars', async (req, res) => {
 });
 
 // Update existing car
-app.put('/api/cars/:id', async (req, res) => {
+app.put('/api/cars/:id', upload.fields([
+  { name: 'documents', maxCount: 1 },
+  { name: 'photo', maxCount: 1 }
+]), async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
+    // Get current car data
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Cars!A2:N',
+      range: RANGES.CARS
     });
 
     const rows = response.data.values || [];
     const rowIndex = rows.findIndex(row => row[0] === id);
-
     if (rowIndex === -1) {
       return res.status(404).json({ error: 'Car not found' });
     }
 
+    const currentRow = rows[rowIndex];
+
+    // Handle file updates
+    let documentsUrl = currentRow[17]; // Keep existing URL if no new file
+    let photoUrl = currentRow[18];     // Keep existing URL if no new file
+
+    if (files.documents) {
+      // Delete old document if it exists
+      if (documentsUrl) {
+        await deleteFile(documentsUrl);
+      }
+      documentsUrl = await uploadFile(files.documents[0], documentsFolderId, 'document');
+    }
+
+    if (files.photo) {
+      // Delete old photo if it exists
+      if (photoUrl) {
+        await deleteFile(photoUrl);
+      }
+      photoUrl = await uploadFile(files.photo[0], photosFolderId, 'photo');
+    }
+
     const updatedRow = [
       id,
-      updates.make,
-      updates.model,
-      updates.year,
-      updates.color,
-      updates.registrationNumber,
-      updates.purchasePrice,
-      updates.purchaseDate,
-      updates.currentStatus,
-      updates.condition,
-      updates.sellerName,
-      updates.sellerContact,
-      JSON.stringify(updates.additionalCosts),
-      updates.totalCost,
+      updates.make || currentRow[1],
+      updates.model || currentRow[2],
+      updates.year || currentRow[3],
+      updates.color || currentRow[4],
+      updates.registrationNumber || currentRow[5],
+      updates.purchasePrice || currentRow[6],
+      updates.purchaseDate || currentRow[7],
+      currentRow[8], // currentStatus (formula-driven)
+      updates.condition || currentRow[9],
+      updates.sellerName || currentRow[10],
+      updates.sellerContact || currentRow[11],
+      updates.transportCost || currentRow[12],
+      updates.inspectionCost || currentRow[13],
+      updates.otherCost || currentRow[14],
+      currentRow[15], // totalCost (formula-driven)
+      updates.location || currentRow[16],
+      documentsUrl,
+      photoUrl,
+      updates.investmentSplit || currentRow[19],
+      currentRow[20], // profitLoss (formula-driven)
+      currentRow[21]  // partnerReturns (formula-driven)
     ];
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: `Cars!A${rowIndex + 2}`,
-      valueInputOption: 'RAW',
+      valueInputOption: 'USER_ENTERED',
       requestBody: {
-        values: [updatedRow],
-      },
+        values: [updatedRow]
+      }
     });
 
-    res.json({ message: 'Car updated successfully', data: updates });
+    res.json({
+      message: 'Car updated successfully',
+      data: {
+        ...updates,
+        id,
+        documents: documentsUrl,
+        photo: photoUrl
+      }
+    });
   } catch (error) {
     console.error('Error updating car:', error);
     res.status(500).json({ error: 'Failed to update car' });
@@ -488,7 +577,7 @@ app.post('/api/sales', async (req, res) => {
       return res.status(400).json({ error: `Missing required fields: ${missingFields.join(', ')}` });
     }
 
-    // Get car details to retrieve totalCost
+    // Check if car exists and is not sold
     const carResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: RANGES.CARS
@@ -502,20 +591,6 @@ app.post('/api/sales', async (req, res) => {
     if (carRow[8] === 'Sold') {
       return res.status(400).json({ error: 'Car is already sold' });
     }
-
-    const totalCost = Number(carRow[15]); // Column P
-
-    // Get total repair costs for the car
-    const repairsResponse = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: RANGES.REPAIRS
-    });
-    const totalRepairCosts = (repairsResponse.data.values || [])
-      .filter(row => row[1] === carId)
-      .reduce((sum, row) => sum + Number(row[4]), 0); // Column E: Repair Cost
-
-    const grossProfit = salePrice - totalCost;
-    const netProfit = grossProfit - totalRepairCosts;
 
     // Generate new sale ID
     const salesResponse = await sheets.spreadsheets.values.get({
@@ -532,10 +607,10 @@ app.post('/api/sales', async (req, res) => {
       salePrice,
       buyerName,
       buyerContactInfo,
-      grossProfit,        // Profit (gross)
+      '', // Profit (formula-driven)
       paymentStatus,
-      totalRepairCosts,
-      netProfit           // Net Profit
+      '', // Total Repair Costs (formula-driven)
+      ''  // Net Profit (formula-driven)
     ];
 
     await sheets.spreadsheets.values.append({
@@ -567,10 +642,7 @@ app.post('/api/sales', async (req, res) => {
       salePrice,
       buyerName,
       buyerContactInfo,
-      profit: grossProfit,
-      paymentStatus,
-      totalRepairCosts,
-      netProfit
+      paymentStatus
     });
   } catch (error) {
     console.error('Error adding sale:', error);
@@ -817,6 +889,147 @@ app.get('/api/rentals', async (req, res) => {
   } catch (error) {
     console.error('Error fetching rentals:', error);
     res.status(500).json({ error: 'Failed to fetch rentals' });
+  }
+});
+
+app.post('/api/rentals', async (req, res) => {
+  try {
+    const {
+      carId,
+      customerName,
+      customerContact,
+      startDate,
+      returnDate,
+      dailyRate,
+      damageFee,
+      lateFee,
+      otherFee,
+      additionalCostsDescription
+    } = req.body;
+
+    // Validate required fields
+    const requiredFields = ['carId', 'customerName', 'customerContact', 'startDate', 'returnDate', 'dailyRate'];
+    const missingFields = requiredFields.filter(field => !req.body[field]);
+    if (missingFields.length > 0) {
+      return res.status(400).json({ error: `Missing required fields: ${missingFields.join(', ')}` });
+    }
+
+    // Check if car exists and is available
+    const carResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: RANGES.CARS
+    });
+    const carRow = (carResponse.data.values || []).find(row => row[0] === carId);
+    if (!carRow) {
+      return res.status(404).json({ error: 'Car not found' });
+    }
+    if (carRow[8] !== 'Available') {
+      return res.status(400).json({ error: 'Car is not available for rent' });
+    }
+
+    // Generate new rental ID
+    const rentalsResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: RANGES.RENTALS
+    });
+    const existingIds = (rentalsResponse.data.values || []).map(row => row[0]);
+    const newId = generateId('RN', existingIds);
+
+    const newRow = [
+      newId,
+      carId,
+      customerName,
+      customerContact,
+      startDate,
+      returnDate,
+      '', // daysLeft (formula-driven)
+      '', // daysOut (formula-driven)
+      dailyRate,
+      '', // totalRentEarned (formula-driven)
+      damageFee || '',
+      lateFee || '',
+      otherFee || '',
+      additionalCostsDescription || '',
+      '' // rentalStatus (formula-driven)
+    ];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: RANGES.RENTALS,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [newRow]
+      }
+    });
+
+    res.status(201).json({
+      id: newId,
+      carId,
+      customerName,
+      customerContact,
+      startDate,
+      returnDate,
+      dailyRate,
+      damageFee,
+      lateFee,
+      otherFee,
+      additionalCostsDescription,
+      rentalStatus: 'Active'
+    });
+  } catch (error) {
+    console.error('Error adding rental:', error);
+    res.status(500).json({ error: 'Failed to add rental' });
+  }
+});
+
+app.put('/api/rentals/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Rentals!A2:O',
+    });
+
+    const rows = response.data.values || [];
+    const rowIndex = rows.findIndex(row => row[0] === id);
+
+    if (rowIndex === -1) {
+      return res.status(404).json({ error: 'Rental not found' });
+    }
+
+    const updatedRow = [
+      id,
+      updates.carId,
+      updates.customerName,
+      updates.customerContact,
+      updates.startDate,
+      updates.returnDate,
+      '', // daysLeft (formula-driven)
+      '', // daysOut (formula-driven)
+      updates.dailyRate,
+      '', // totalRentEarned (formula-driven)
+      updates.damageFee || '',
+      updates.lateFee || '',
+      updates.otherFee || '',
+      updates.additionalCostsDescription || '',
+      '' // rentalStatus (formula-driven)
+    ];
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `Rentals!A${rowIndex + 2}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [updatedRow],
+      },
+    });
+
+    res.json({ message: 'Rental updated successfully', data: updates });
+  } catch (error) {
+    console.error('Error updating rental:', error);
+    res.status(500).json({ error: 'Failed to update rental' });
   }
 });
 

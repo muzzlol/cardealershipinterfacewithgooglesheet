@@ -32,4 +32,7 @@ backend/keys.json
 .env
 **/.env
 **/.env.local
-**/keys.json 
+**/keys.json
+backend/uploads/*
+!backend/uploads/.gitkeep
+/uploads
