@@ -82,7 +82,8 @@ export function SalesList() {
                 <TableHead>Sale ID</TableHead>
                 <TableHead>Car ID</TableHead>
                 <TableHead>Sale Date</TableHead>
-                <TableHead>Buyer Name</TableHead>
+                <TableHead>Buyer Info</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="text-right">Sale Price</TableHead>
                 <TableHead className="text-right">Profit</TableHead>
               </TableRow>
@@ -93,16 +94,32 @@ export function SalesList() {
                   <TableCell>{sale.id}</TableCell>
                   <TableCell>{sale.carId}</TableCell>
                   <TableCell>{format(new Date(sale.saleDate), 'MMM d, yyyy')}</TableCell>
-                  <TableCell>{sale.buyerName}</TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      <div className="font-medium">{sale.buyerName}</div>
+                      <div className="text-muted-foreground">{sale.buyerContactInfo}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      sale.paymentStatus === 'Paid' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {sale.paymentStatus}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right">SAR {sale.salePrice.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">SAR {sale.profit.toLocaleString()}</TableCell>
+                  <TableCell className={`text-right ${sale.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    SAR {sale.profit.toLocaleString()}
+                  </TableCell>
                 </TableRow>
               ))}
               <TableRow>
-                <TableCell colSpan={5} className="text-right font-medium">
+                <TableCell colSpan={6} className="text-right font-medium">
                   Total Profit
                 </TableCell>
-                <TableCell className="text-right font-medium">
+                <TableCell className={`text-right font-medium ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   SAR {totalProfit.toLocaleString()}
                 </TableCell>
               </TableRow>

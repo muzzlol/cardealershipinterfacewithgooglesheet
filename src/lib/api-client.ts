@@ -1,5 +1,5 @@
 const API_BASE_URL = 'http://localhost:3000/api';
-import { Car, Sale, Repair, Partner, Rental } from '@/types';
+import { Sale, Repair, Partner, Rental } from '@/types';
 
 interface PaginatedResponse<T> {
   data: T[];
@@ -9,6 +9,37 @@ interface PaginatedResponse<T> {
     totalItems: number;
     limit: number;
   }
+}
+
+interface GroupedRepairs {
+  carId: string;
+  totalCost: number;
+  repairs: Repair[];
+}
+
+interface Car {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
+  color: string;
+  registrationNumber: string;
+  purchasePrice: number;
+  purchaseDate: string;
+  currentStatus: 'Available' | 'Sold' | 'On Rent';
+  condition: string;
+  location?: string;
+  sellerName: string;
+  sellerContact: string;
+  transportCost: number;
+  inspectionCost: number;
+  otherCost: number;
+  totalCost: number;
+  documents?: string;
+  photo?: string;
+  investmentSplit: string;
+  profitLoss: number;
+  partnerReturns: string;
 }
 
 class ApiClient {
@@ -37,14 +68,14 @@ class ApiClient {
   async addCar(carData: FormData): Promise<Car> {
     return this.request<Car>('/cars', {
       method: 'POST',
-      body: JSON.stringify(carData),
+      body: carData, // FormData will automatically set the correct Content-Type
     });
   }
 
   async updateCar(id: string, carData: FormData): Promise<Car> {
     return this.request<Car>(`/cars/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(carData),
+      body: carData,
     });
   }
 
@@ -97,6 +128,31 @@ class ApiClient {
       },
       body: JSON.stringify(repair),
     });
+  }
+
+  async getRepairsGroupedByCar(page: number, limit: number): Promise<PaginatedResponse<GroupedRepairs>> {
+    const response = await this.request<PaginatedResponse<Repair>>(`/repairs?page=${page}&limit=${limit}`);
+    
+    // Group repairs by carId
+    const groupedRepairs = Object.values(
+      response.data.reduce<Record<string, GroupedRepairs>>((acc, repair) => {
+        if (!acc[repair.carId]) {
+          acc[repair.carId] = {
+            carId: repair.carId,
+            totalCost: 0,
+            repairs: []
+          };
+        }
+        acc[repair.carId].repairs.push(repair);
+        acc[repair.carId].totalCost += repair.cost;
+        return acc;
+      }, {})
+    );
+
+    return {
+      data: groupedRepairs,
+      pagination: response.pagination
+    };
   }
 
   // Rentals
