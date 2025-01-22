@@ -253,11 +253,11 @@ export function CarsList() {
                       </span>
                     </TableCell>
                     <TableCell className="whitespace-pre-line">
-                      {formatPartnerReturns(car.partnerReturns)}
+                      {formatPartnerReturns(car.partnerReturns || '')}
                     </TableCell>
                     <TableCell className="max-w-[150px] whitespace-pre-line">
                       {(() => {
-                        const { name, isLink } = extractLocationName(car.location);
+                        const { name, isLink } = extractLocationName(car.location || '');
                         return isLink ? (
                           <a 
                             href={car.location} 
