@@ -70,7 +70,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
+}));
 app.use(express.json());
 
 // Google Sheets Setup
@@ -266,29 +272,30 @@ app.post('/api/cars', upload.fields([
     const existingIds = (response.data.values || []).map(row => row[0]);
     const newId = generateId('C', existingIds);
 
+    // Create row data with null for formula columns
     const newRow = [
-      newId,
-      make,
-      model,
-      year,
-      color,
-      registrationNumber,
-      purchasePrice,
-      purchaseDate,
-      '', // currentStatus (formula-driven)
-      condition,
-      sellerName,
-      sellerContact,
-      transportCost || '',
-      inspectionCost || '',
-      otherCost || '',
-      '', // totalCost (formula-driven)
-      location || '',
-      documentsUrl,
-      photoUrl,
-      investmentSplit || '',
-      '', // profitLoss (formula-driven)
-      ''  // partnerReturns (formula-driven)
+      newId,                // A - Car ID
+      make,                 // B - Make
+      model,               // C - Model
+      year,                // D - Year
+      color,               // E - Color
+      registrationNumber,  // F - Registration Number
+      purchasePrice,       // G - Purchase Price
+      purchaseDate,        // H - Purchase Date
+      null,                // I - Current Status (formula)
+      condition,           // J - Condition
+      sellerName,          // K - Seller Name
+      sellerContact,       // L - Seller Contact
+      transportCost,    // M - Transport Cost
+      inspectionCost,   // N - Inspection Cost
+      otherCost,        // O - Other Cost
+      null,                // P - Total Cost (formula)
+      location || '',      // Q - Location
+      documentsUrl,        // R - Documents
+      photoUrl,           // S - Photo
+      investmentSplit,     // T - Investment Split
+      null,                // U - Profit/Loss (formula)
+      null                 // V - Partner Returns (formula)
     ];
 
     await sheets.spreadsheets.values.append({
@@ -309,7 +316,6 @@ app.post('/api/cars', upload.fields([
       registrationNumber,
       purchasePrice,
       purchaseDate,
-      currentStatus: 'Available',
       condition,
       sellerName,
       sellerContact,
@@ -384,9 +390,9 @@ app.put('/api/cars/:id', upload.fields([
       updates.condition || currentRow[9],
       updates.sellerName || currentRow[10],
       updates.sellerContact || currentRow[11],
-      updates.transportCost || currentRow[12],
-      updates.inspectionCost || currentRow[13],
-      updates.otherCost || currentRow[14],
+      Number(updates.transportCost) || Number(currentRow[12]),
+      Number(updates.inspectionCost) || Number(currentRow[13]),
+      Number(updates.otherCost) || Number(currentRow[14]),
       currentRow[15], // totalCost (formula-driven)
       updates.location || currentRow[16],
       documentsUrl,

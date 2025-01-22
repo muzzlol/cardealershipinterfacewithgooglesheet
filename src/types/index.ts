@@ -15,9 +15,9 @@ export interface Car {
   inspectionCost: number;
   otherCost: number;
   totalCost: number;
-  location: string;
-  documents: string;
-  photo: string;
+  location?: string;
+  documents?: string;
+  photo?: string;
   investmentSplit: string;
   profitLoss: number;
   partnerReturns: string;

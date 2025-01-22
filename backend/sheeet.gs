@@ -104,7 +104,7 @@ function addFormulasToSheet(sheetTab, tabName) {
     const totalCostFormula = `=IF(OR(G2="", M2="", N2="", O2=""), "", SUM(G2, M2:O2))`;
     sheetTab.getRange("P2:P").setFormula(totalCostFormula);
 
-    // Current Status formula (check for empty Car ID)
+    // Current Status formula
     const currentStatusFormula = `=IF(A2="", "", IFERROR(
       IFS(
         COUNTIF(Sales!B:B, A2) > 0, "Sold",
@@ -116,20 +116,33 @@ function addFormulasToSheet(sheetTab, tabName) {
     sheetTab.getRange("I2:I").setFormula(currentStatusFormula);
 
     // Profit/Loss formula
-    const profitLossFormula = `=IF(A2="", "", P2 + SUMIF(Repairs!B:B, A2, Repairs!E:E) - SUMIF(Rentals!B:B, A2, Rentals!J:J) - IFERROR(VLOOKUP(A2, Sales!B:D, 3, FALSE), 0))`;
+    const profitLossFormula = `=IF(A2="", "", 
+      IF(I2="Sold",
+        IFERROR(VLOOKUP(A2, Sales!B:D, 3, FALSE), 0) - (
+          P2 + 
+          SUMIF(Repairs!B:B, A2, Repairs!E:E) - 
+          SUMIF(Rentals!B:B, A2, Rentals!J:J)
+        ),
+        -(
+          P2 + 
+          SUMIF(Repairs!B:B, A2, Repairs!E:E) - 
+          SUMIF(Rentals!B:B, A2, Rentals!J:J)
+        )
+      )
+    )`;
     sheetTab.getRange("U2:U").setFormula(profitLossFormula);
 
     // Partner Returns formula
     const partnerReturnsFormula = `=IF(A2="", "",
-    IFERROR(
-      TEXTJOIN(",", TRUE,
-        ARRAYFORMULA(
-          VALUE(SPLIT(T2, ",")) * U2
-        )
-      ),
-      ""
-    )
-  )`;
+      IFERROR(
+        TEXTJOIN(",", TRUE,
+          ARRAYFORMULA(
+            VALUE(SPLIT(T2, ",")) * U2
+          )
+        ),
+        ""
+      )
+    )`;
     sheetTab.getRange("V2:V").setFormula(partnerReturnsFormula);
 
   } else if (tabName === "Sales") {
@@ -186,14 +199,14 @@ function seedDummyData(ss) {
   // Dummy data
   const dummyData = {
     "Cars": [
-      ["C1", "Toyota", "Corolla", 2020, "White", "REG1234", 50000, "2024-01-15", null, "Good", "Mohamed", "501234567", 500, 200, 100, null, "Riyadh", "Docs Available", "https://example.com/photo1.jpg", "0.30,0.40,0.30", null, null],
-      ["C2", "Honda", "Civic", 2019, "Black", "REG5678", 45000, "2024-02-10", null, "Excellent", "Osama", "509876543", 300, 150, 0, null, "Jeddah", "Docs Available", "https://example.com/photo2.jpg", "0.50,0.20,0.30", null, null],
-      ["C3", "Ford", "Focus", 2021, "Red", "REG1122", 53000, "2024-03-20", null, "Like New", "Layla", "502244668", 600, 200, 200, null, "Dammam", "Docs Available", "https://example.com/photo3.jpg", "0.40,0.40,0.20", null, null],
-      ["C4", "Chevrolet", "Spark", 2018, "Blue", "REG3344", 32000, "2024-04-12", null, "Good", "Hassan", "542134578", 450, 150, 100, null, "Medina", "Docs Available", "https://example.com/photo4.jpg", "0.25,0.50,0.25", null, null],
-      ["C5", "BMW", "3 Series", 2022, "Gray", "REG5566", 80000, "2024-05-01", null, "Excellent", "Fatima", "512121212", 1000, 500, 400, null, "Abha", "Docs Available", "https://example.com/photo5.jpg", "0.33,0.33,0.34", null, null],
-      ["C6", "Mercedes", "C-Class", 2021, "Silver", "REG7788", 120000, "2024-06-30", null, "Like New", "Ali", "500001111", 750, 300, 250, null, "Taif", "Docs Available", "https://example.com/photo6.jpg", "0.60,0.20,0.20", null, null],
-      ["C7", "Hyundai", "Elantra", 2017, "White", "REG9999", 28000, "2024-07-15", null, "Fair", "Ibrahim", "533334444", 350, 100, 50, null, "Buraydah", "Docs Available", "https://example.com/photo7.jpg", "0.45,0.30,0.25", null, null],
-      ["C8", "Toyota", "Fortuner", 2017, "White", "abd342", 71600, "2025-01-14", null, "Used", "Muzammil Khan", "9515515529", 500, 250, 100, null, "Jubail", "Docs Available", "https://example.com/photo8.jpg", "0.33,0.33,0.34", null, null]
+      ["C1", "Toyota", "Corolla", 2020, "White", "REG1234", 50000, "2024-01-15", null, "Good", "Mohamed", "501234567", 500, 200, 100, null, "https://www.google.com/maps/place/Khans+apartment+complex/@17.3277184,78.446592,14z/data=!4m6!3m5!1s0x3bcbbd658a429497:0xd581d3b7a84635f3!8m2!3d17.329847!4d78.4469573!16s%2Fg%2F11tjmgky5c?entry=ttu&g_ep=EgoyMDI1MDExNS4wIKXMDSoASAFQAw%3D%3D", "https://drive.google.com/file/d/1DAd_wzvHyjKedKdaZZGYVFNcmyXYqyXW/view?usp=drive_link", "https://example.com/photo1.jpg", "0.30,0.40,0.30", null, null],
+      ["C2", "Honda", "Civic", 2019, "Black", "REG5678", 45000, "2024-02-10", null, "Excellent", "Osama", "509876543", 300, 150, 0, null, "Jeddah", "link", "https://example.com/photo2.jpg", "0.50,0.20,0.30", null, null],
+      ["C3", "Ford", "Focus", 2021, "Red", "REG1122", 53000, "2024-03-20", null, "Like New", "Layla", "502244668", 600, 200, 200, null, "Dammam", "<link>", "https://example.com/photo3.jpg", "0.40,0.40,0.20", null, null],
+      ["C4", "Chevrolet", "Spark", 2018, "Blue", "REG3344", 32000, "2024-04-12", null, "Good", "Hassan", "542134578", 450, 150, 100, null, "Medina", "<link>", "https://example.com/photo4.jpg", "0.25,0.50,0.25", null, null],
+      ["C5", "BMW", "3 Series", 2022, "Gray", "REG5566", 80000, "2024-05-01", null, "Excellent", "Fatima", "512121212", 1000, 500, 400, null, "Abha", "<link>", "https://example.com/photo5.jpg", "0.33,0.33,0.34", null, null],
+      ["C6", "Mercedes", "C-Class", 2021, "Silver", "REG7788", 120000, "2024-06-30", null, "Like New", "Ali", "500001111", 750, 300, 250, null, "Taif", "<link>", "https://example.com/photo6.jpg", "0.60,0.20,0.20", null, null],
+      ["C7", "Hyundai", "Elantra", 2017, "White", "REG9999", 28000, "2024-07-15", null, "Fair", "Ibrahim", "533334444", 350, 100, 50, null, "Buraydah", "<link>", "https://example.com/photo7.jpg", "0.45,0.30,0.25", null, null],
+      ["C8", "Toyota", "Fortuner", 2017, "White", "abd342", 71600, "2025-01-14", null, "Used", "Muzammil Khan", "9515515529", 500, 250, 100, null, "Jubail", "<link>", "https://example.com/photo8.jpg", "0.33,0.33,0.34", null, null]
     ],
     "Repairs": [
       ["R1", "C1", "2024-03-01", "Oil Change", 200, "John Mechanic", "CarFix Inc.", "504442222", "Area 1, City"],
