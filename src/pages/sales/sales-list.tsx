@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -16,19 +16,31 @@ import { format } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationEllipsis, PaginationPrevious, PaginationNext } from '@/components/ui/pagination';
+import { LimitSelector } from '@/components/ui/limit-selector';
 
 export function SalesList() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
-
   const { toast } = useToast();
+
+  const currentPage = Number(searchParams.get('page')) || 1;
+  const limit = Number(searchParams.get('limit')) || 10;
 
   useEffect(() => {
     loadSales();
-  }, [currentPage]);
+  }, [currentPage, limit]);
+
+  useEffect(() => {
+    function onFocus() {
+      if (!loading) {
+        loadSales();
+      }
+    }
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [loading]);
 
   const loadSales = async () => {
     try {
@@ -36,7 +48,6 @@ export function SalesList() {
       const response = await apiClient.getSales(currentPage, limit);
       setSales(response.data);
       setTotalPages(response.pagination.totalPages);
-      setLimit(response.pagination.limit);
     } catch (err) {
       toast({
         title: 'Error',
@@ -46,6 +57,21 @@ export function SalesList() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePageChange = (page: number) => {
+    setSearchParams(prev => {
+      prev.set('page', page.toString());
+      return prev;
+    });
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    setSearchParams(prev => {
+      prev.set('limit', newLimit.toString());
+      prev.set('page', '1');
+      return prev;
+    });
   };
 
   const totalProfit = sales.reduce((sum, sale) => sum + sale.profit, 0);
@@ -126,12 +152,14 @@ export function SalesList() {
             </TableBody>
           </Table>
         </div>
-        <div className="mt-4 flex justify-center">
+
+        <div className="mt-4 flex items-center justify-between">
+          <LimitSelector value={limit} onValueChange={handleLimitChange} />
           <Pagination>
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious 
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  onClick={() => handlePageChange(currentPage - 1)}
                   className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
                 />
               </PaginationItem>
@@ -145,7 +173,7 @@ export function SalesList() {
                   return (
                     <PaginationItem key={pageNumber}>
                       <PaginationLink
-                        onClick={() => setCurrentPage(pageNumber)}
+                        onClick={() => handlePageChange(pageNumber)}
                         isActive={currentPage === pageNumber}
                       >
                         {pageNumber}
@@ -166,7 +194,7 @@ export function SalesList() {
               })}
               <PaginationItem>
                 <PaginationNext
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  onClick={() => handlePageChange(currentPage + 1)}
                   className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
                 />
               </PaginationItem>

@@ -4,11 +4,9 @@ import { AddRepair } from './add-repair';
 
 export function Repairs() {
   return (
-    <div className="space-y-6">
-      <Routes>
-        <Route index element={<RepairsList />} />
-        <Route path="add" element={<AddRepair />} />
-      </Routes>
-    </div>
+    <Routes>
+      <Route index element={<RepairsList />} />
+      <Route path="add" element={<AddRepair />} />
+    </Routes>
   );
 }

@@ -56,7 +56,7 @@ export function AddRepair() {
   useEffect(() => {
     const fetchCars = async () => {
       try {
-        const availableCars = await apiClient.getAvailableCars();
+        const availableCars = await apiClient.getAvailableCars(); // get all cars that are not sold i.e available and on rent
         setCars(availableCars);
       } catch (error) {
         toast({

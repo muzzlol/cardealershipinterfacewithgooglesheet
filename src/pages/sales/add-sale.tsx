@@ -32,7 +32,7 @@ const formSchema = z.object({
   salePrice: z.number().min(1, 'Sale price is required'),
   buyerName: z.string().min(1, 'Buyer name is required'),
   buyerContactInfo: z.string().min(1, 'Buyer contact info is required'),
-  paymentStatus: z.enum(['Paid', 'Pending'], {
+  paymentStatus: z.enum(['Paid', 'Unpaid'], {
     required_error: 'Payment status is required',
   }),
 });
@@ -63,7 +63,8 @@ export function AddSale() {
   const loadAvailableCars = async () => {
     try {
       const availableCars = await apiClient.getAvailableCars();
-      setCars(availableCars);
+      const filteredCars = availableCars.filter(car => car.currentStatus === 'Available');
+      setCars(filteredCars);
     } catch (error) {
       toast({
         title: 'Error',
@@ -116,9 +117,7 @@ export function AddSale() {
         salePrice: Number(values.salePrice),
         buyerName: values.buyerName,
         buyerContactInfo: values.buyerContactInfo,
-        paymentStatus: values.paymentStatus,
-        totalRepairCosts: selectedCarDetails?.totalRepairCosts || 0,
-        netProfit: selectedCarDetails?.estimatedProfit || 0
+        paymentStatus: values.paymentStatus
       });
 
       toast({
@@ -275,7 +274,7 @@ export function AddSale() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="Paid">Paid</SelectItem>
-                          <SelectItem value="Pending">Pending</SelectItem>
+                          <SelectItem value="Unpaid">Unpaid</SelectItem>
                         </SelectContent>
                       </Select>
                     </FormControl>

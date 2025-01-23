@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Table,
   TableBody,
@@ -15,6 +15,7 @@ import { apiClient } from '@/lib/api-client';
 import { Repair } from '@/types';
 import { PageContainer } from '@/components/layout/page-container';
 import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext } from '@/components/ui/pagination';
+import { LimitSelector } from '@/components/ui/limit-selector';
 
 interface GroupedRepairs {
   carId: string;
@@ -23,26 +24,29 @@ interface GroupedRepairs {
 }
 
 export function RepairsList() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [groupedRepairs, setGroupedRepairs] = useState<GroupedRepairs[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [openCarIds, setOpenCarIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
+  const currentPage = Number(searchParams.get('page')) || 1;
+  const limit = Number(searchParams.get('limit')) || 10;
+
   useEffect(() => {
     loadRepairs();
-  }, [currentPage]);
+  }, [currentPage, limit]);
 
-  // Refresh list when window regains focus
   useEffect(() => {
     function onFocus() {
-      loadRepairs();
+      if (!loading) {
+        loadRepairs();
+      }
     }
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, []);
+  }, [loading]);
 
   async function loadRepairs() {
     try {
@@ -50,7 +54,6 @@ export function RepairsList() {
       const response = await apiClient.getRepairsGroupedByCar(currentPage, limit);
       setGroupedRepairs(response.data);
       setTotalPages(response.pagination.totalPages);
-      setLimit(response.pagination.limit);
     } catch (error) {
       toast({
         title: 'Error',
@@ -61,6 +64,21 @@ export function RepairsList() {
       setLoading(false);
     }
   }
+
+  const handlePageChange = (page: number) => {
+    setSearchParams(prev => {
+      prev.set('page', page.toString());
+      return prev;
+    });
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    setSearchParams(prev => {
+      prev.set('limit', newLimit.toString());
+      prev.set('page', '1');
+      return prev;
+    });
+  };
 
   const toggleCarRepairs = (carId: string) => {
     const newOpenCarIds = new Set(openCarIds);
@@ -185,12 +203,13 @@ export function RepairsList() {
         </Table>
       </div>
 
-      <div className="mt-4 flex justify-center">
+      <div className="mt-4 flex items-center justify-between">
+        <LimitSelector value={limit} onValueChange={handleLimitChange} />
         <Pagination>
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious 
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                onClick={() => handlePageChange(currentPage - 1)}
                 className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
               />
             </PaginationItem>
@@ -199,7 +218,7 @@ export function RepairsList() {
                 <Button
                   variant={currentPage === page ? "outline" : "ghost"}
                   size="icon"
-                  onClick={() => setCurrentPage(page)}
+                  onClick={() => handlePageChange(page)}
                 >
                   {page}
                 </Button>
@@ -207,7 +226,7 @@ export function RepairsList() {
             ))}
             <PaginationItem>
               <PaginationNext
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                onClick={() => handlePageChange(currentPage + 1)}
                 className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
               />
             </PaginationItem>

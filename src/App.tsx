@@ -4,8 +4,7 @@ import { Dashboard } from '@/pages/dashboard';
 import { Cars } from '@/pages/cars';
 import { Repairs } from '@/pages/repairs';
 import { Sales } from '@/pages/sales';
-import { Partners } from '@/pages/partners/partner-list';
-import { Reports } from '@/pages/reports';
+import { Rentals } from '@/pages/rentals';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 
@@ -20,9 +19,8 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/cars/*" element={<Cars />} />
               <Route path="/repairs/*" element={<Repairs />} />
+              <Route path="/rentals/*" element={<Rentals />} />
               <Route path="/sales/*" element={<Sales />} />
-              <Route path="/partners/*" element={<Partners />} />
-              <Route path="/reports" element={<Reports />} />
             </Routes>
           </div>
           <Toaster />
