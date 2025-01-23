@@ -174,20 +174,23 @@ function addFormulasToSheet(sheetTab, tabName) {
     sheetTab.getRange("D4").setFormula(netProfitFormulaPartner3);
 
   } else if (tabName === "Rentals") {
-    // Days Left formula
-    const daysLeftFormula = `=IF(OR(E2="", F2=""), "", VALUE(F2) - VALUE(TODAY()))`;
+    // Days Left formula - Stop at 0 and when rental is completed
+    const daysLeftFormula = `=IF(OR(E2="", F2=""), "", 
+      IF(VALUE(F2) - VALUE(TODAY()) <= 0, 0, VALUE(F2) - VALUE(TODAY())))`;
     sheetTab.getRange("G2:G").setFormula(daysLeftFormula);
 
-    // Days Out formula
-    const daysOutFormula = `=IF(OR(E2="", F2=""), "", MAX(0, VALUE(TODAY()) - VALUE(E2)))`;
+    // Days Out formula - Stop at return date
+    const daysOutFormula = `=IF(OR(E2="", F2=""), "", 
+      MIN(VALUE(F2) - VALUE(E2), MAX(0, VALUE(TODAY()) - VALUE(E2))))`;
     sheetTab.getRange("H2:H").setFormula(daysOutFormula);
 
     // Total Rent Earned (SAR) formula
     const totalRentFormula = `=IF(OR(H2="", I2=""), "", (H2 * I2) + SUM(K2:M2))`;
     sheetTab.getRange("J2:J").setFormula(totalRentFormula);
 
-    // Rental Status formula
-    const rentalStatusFormula = `=IF(OR(ISBLANK(G2), G2=""), "", IF(G2 <= 0, "Completed", "Active"))`;
+    // Rental Status formula - Based on return date and days left
+    const rentalStatusFormula = `=IF(OR(ISBLANK(F2), F2=""), "", 
+      IF(VALUE(F2) < VALUE(TODAY()), "Completed", "Active"))`;
     sheetTab.getRange("O2:O").setFormula(rentalStatusFormula);
   }
 }
@@ -199,28 +202,28 @@ function seedDummyData(ss) {
   // Dummy data
   const dummyData = {
     "Cars": [
-      ["C1", "Toyota", "Corolla", 2020, "White", "REG1234", 50000, "2024-01-15", null, "Good", "Mohamed", "501234567", 500, 200, 100, null, "https://www.google.com/maps/place/Khans+apartment+complex/@17.3277184,78.446592,14z/data=!4m6!3m5!1s0x3bcbbd658a429497:0xd581d3b7a84635f3!8m2!3d17.329847!4d78.4469573!16s%2Fg%2F11tjmgky5c?entry=ttu&g_ep=EgoyMDI1MDExNS4wIKXMDSoASAFQAw%3D%3D", "https://drive.google.com/file/d/1DAd_wzvHyjKedKdaZZGYVFNcmyXYqyXW/view?usp=drive_link", "https://example.com/photo1.jpg", "0.30,0.40,0.30", null, null],
-      ["C2", "Honda", "Civic", 2019, "Black", "REG5678", 45000, "2024-02-10", null, "Excellent", "Osama", "509876543", 300, 150, 0, null, "Jeddah", "link", "https://example.com/photo2.jpg", "0.50,0.20,0.30", null, null],
-      ["C3", "Ford", "Focus", 2021, "Red", "REG1122", 53000, "2024-03-20", null, "Like New", "Layla", "502244668", 600, 200, 200, null, "Dammam", "<link>", "https://example.com/photo3.jpg", "0.40,0.40,0.20", null, null],
-      ["C4", "Chevrolet", "Spark", 2018, "Blue", "REG3344", 32000, "2024-04-12", null, "Good", "Hassan", "542134578", 450, 150, 100, null, "Medina", "<link>", "https://example.com/photo4.jpg", "0.25,0.50,0.25", null, null],
-      ["C5", "BMW", "3 Series", 2022, "Gray", "REG5566", 80000, "2024-05-01", null, "Excellent", "Fatima", "512121212", 1000, 500, 400, null, "Abha", "<link>", "https://example.com/photo5.jpg", "0.33,0.33,0.34", null, null],
-      ["C6", "Mercedes", "C-Class", 2021, "Silver", "REG7788", 120000, "2024-06-30", null, "Like New", "Ali", "500001111", 750, 300, 250, null, "Taif", "<link>", "https://example.com/photo6.jpg", "0.60,0.20,0.20", null, null],
-      ["C7", "Hyundai", "Elantra", 2017, "White", "REG9999", 28000, "2024-07-15", null, "Fair", "Ibrahim", "533334444", 350, 100, 50, null, "Buraydah", "<link>", "https://example.com/photo7.jpg", "0.45,0.30,0.25", null, null],
+      ["C1", "Toyota", "Corolla", 2020, "White", "REG1234", 50000, "2025-01-15", null, "Good", "Mohamed", "501234567", 500, 200, 100, null, "https://www.google.com/maps/place/Khans+apartment+complex/@17.3277184,78.446592,14z/data=!4m6!3m5!1s0x3bcbbd658a429497:0xd581d3b7a84635f3!8m2!3d17.329847!4d78.4469573!16s%2Fg%2F11tjmgky5c?entry=ttu&g_ep=EgoyMDI1MDExNS4wIKXMDSoASAFQAw%3D%3D", "https://drive.google.com/file/d/1DAd_wzvHyjKedKdaZZGYVFNcmyXYqyXW/view?usp=drive_link", "https://example.com/photo1.jpg", "0.30,0.40,0.30", null, null],
+      ["C2", "Honda", "Civic", 2019, "Black", "REG5678", 45000, "2025-01-10", null, "Excellent", "Osama", "509876543", 300, 150, 0, null, "Jeddah", "link", "https://example.com/photo2.jpg", "0.50,0.20,0.30", null, null],
+      ["C3", "Ford", "Focus", 2021, "Red", "REG1122", 53000, "2025-01-20", null, "Like New", "Layla", "502244668", 600, 200, 200, null, "Dammam", "<link>", "https://example.com/photo3.jpg", "0.40,0.40,0.20", null, null],
+      ["C4", "Chevrolet", "Spark", 2018, "Blue", "REG3344", 32000, "2025-01-12", null, "Good", "Hassan", "542134578", 450, 150, 100, null, "Medina", "<link>", "https://example.com/photo4.jpg", "0.25,0.50,0.25", null, null],
+      ["C5", "BMW", "3 Series", 2022, "Gray", "REG5566", 80000, "2025-01-01", null, "Excellent", "Fatima", "512121212", 1000, 500, 400, null, "Abha", "<link>", "https://example.com/photo5.jpg", "0.33,0.33,0.34", null, null],
+      ["C6", "Mercedes", "C-Class", 2021, "Silver", "REG7788", 120000, "2025-01-30", null, "Like New", "Ali", "500001111", 750, 300, 250, null, "Taif", "<link>", "https://example.com/photo6.jpg", "0.60,0.20,0.20", null, null],
+      ["C7", "Hyundai", "Elantra", 2017, "White", "REG9999", 28000, "2025-01-15", null, "Fair", "Ibrahim", "533334444", 350, 100, 50, null, "Buraydah", "<link>", "https://example.com/photo7.jpg", "0.45,0.30,0.25", null, null],
       ["C8", "Toyota", "Fortuner", 2017, "White", "abd342", 71600, "2025-01-14", null, "Used", "Muzammil Khan", "9515515529", 500, 250, 100, null, "Jubail", "<link>", "https://example.com/photo8.jpg", "0.33,0.33,0.34", null, null]
     ],
     "Repairs": [
-      ["R1", "C1", "2024-03-01", "Oil Change", 200, "John Mechanic", "CarFix Inc.", "504442222", "Area 1, City"],
-      ["R2", "C2", "2024-04-15", "Brake Pads Replacement", 600, "Doe Mechanic", "CarFix Pro", "503332211", "Area 2, City"],
-      ["R3", "C3", "2024-05-05", "Transmission Check", 900, "Mike Mechanic", "GearHeads", "501230000", "Industrial Area"],
-      ["R4", "C5", "2024-06-10", "Engine Tune-up", 1200, "John Mechanic", "CarFix Inc.", "504442222", "Area 1, City"],
-      ["R5", "C7", "2024-07-20", "Wheel Alignment", 350, "Doe Mechanic", "CarFix Pro", "503332211", "Area 2, City"],
-      ["R6", "C6", "2024-08-02", "AC Repair", 800, "Sam Mechanic", "CoolAir Shop", "505678901", "District 5, City"],
+      ["R1", "C1", "2025-01-01", "Oil Change", 200, "John Mechanic", "CarFix Inc.", "504442222", "Area 1, City"],
+      ["R2", "C2", "2025-01-15", "Brake Pads Replacement", 600, "Doe Mechanic", "CarFix Pro", "503332211", "Area 2, City"],
+      ["R3", "C3", "2025-01-05", "Transmission Check", 900, "Mike Mechanic", "GearHeads", "501230000", "Industrial Area"],
+      ["R4", "C5", "2025-01-10", "Engine Tune-up", 1200, "John Mechanic", "CarFix Inc.", "504442222", "Area 1, City"],
+      ["R5", "C7", "2025-01-20", "Wheel Alignment", 350, "Doe Mechanic", "CarFix Pro", "503332211", "Area 2, City"],
+      ["R6", "C6", "2025-01-02", "AC Repair", 800, "Sam Mechanic", "CoolAir Shop", "505678901", "District 5, City"],
       ["R7", "C1", "2025-01-08", "asdf", 200, "asd", "asd", "123", "123 saf"]
     ],
     "Sales": [
-      ["S1", "C2", "2024-05-01", 52000, "Alice", "alice@example.com", null, "Paid", null, null],
-      ["S2", "C5", "2024-08-10", 83000, "Bob", "bob@example.com", null, "Pending", null, null],
-      ["S3", "C7", "2024-08-15", 30000, "Charlie", "charlie@example.com", null, "Paid", null, null],
+      ["S1", "C2", "2025-01-01", 52000, "Alice", "alice@example.com", null, "Paid", null, null],
+      ["S2", "C5", "2025-01-10", 83000, "Bob", "bob@example.com", null, "Pending", null, null],
+      ["S3", "C7", "2025-01-15", 30000, "Charlie", "charlie@example.com", null, "Paid", null, null],
       ["S4", "C8", "2025-01-14", 81600, "Azam", "502156404", null, "Paid", null, null]
     ],
     "Partners": [
@@ -229,8 +232,8 @@ function seedDummyData(ss) {
       ["P3", "Mohammed Ali Khan", "ali@example.com", null, "Investor"]
     ],
     "Rentals": [
-      ["RN1", "C2", "Customer A", "501112222", "2024-01-15", "2025-01-20", null, null, 250, null, null, null, null, null, null],
-      ["RN2", "C1", "Customer B", "502223333", "2024-03-01", "2025-03-01", null, null, 300, null, null, null, null, null, null]
+      ["RN1", "C2", "Customer A", "501112222", "2025-01-15", "2025-02-15", null, null, 250, null, null, null, null, null, null],
+      ["RN2", "C1", "Customer B", "502223333", "2025-01-20", "2025-02-20", null, null, 300, null, null, null, null, null, null]
     ]
   };
 

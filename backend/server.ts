@@ -28,7 +28,7 @@ interface PaginatedResponse<T> {
 // Validation utilities
 const validatePaginationParams = (query: any): PaginationParams => {
   const page = Math.max(1, parseInt(query.page as string) || 1);
-  const limit = Math.min(Math.max(1, parseInt(query.limit as string) || 10), 1000); // Max 50 items per page
+  const limit = Math.min(Math.max(1, parseInt(query.limit as string) || 10), 1000); // Max 1000 items per page
   return { page, limit };
 };
 
@@ -164,7 +164,7 @@ app.get('/api/cars/available', async (req, res) => {
     });
 
     const cars = (response.data.values || [])
-      .filter(row => row[8] !== 'Available') 
+      .filter(row => row[8] !== 'Sold') // filter out sold cars keep available and on rent 
       .map(row => ({
         id: row[0],
         make: row[1],
@@ -864,7 +864,7 @@ app.get('/api/rentals', async (req, res) => {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: getSheetRange('Rentals', startRow, endRow, 'N'),
+      range: getSheetRange('Rentals', startRow, endRow, 'O'),
     });
 
     const rentals = response.data.values?.map((row: any[]) => ({
@@ -878,11 +878,11 @@ app.get('/api/rentals', async (req, res) => {
       daysOut: Number(row[7]),
       dailyRate: Number(row[8]),
       totalRentEarned: Number(row[9]),
-      damageFee: Number(row[10]),
-      lateFee: Number(row[11]),
-      otherFee: Number(row[12]),
-      additionalCostsDescription: row[13],
-      rentalStatus: row[14]
+      damageFee: Number(row[10]) || 0,
+      lateFee: Number(row[11]) || 0,
+      otherFee: Number(row[12]) || 0,
+      additionalCostsDescription: row[13] || '',
+      rentalStatus: row[14] || 'Active' // Ensure rental status is included
     })) || [];
 
     const totalResponse = await sheets.spreadsheets.values.get({
