@@ -5,6 +5,7 @@ import { Cars } from '@/pages/cars';
 import { Repairs } from '@/pages/repairs';
 import { Sales } from '@/pages/sales';
 import { Rentals } from '@/pages/rentals';
+import { Edits } from '@/pages/edits';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 
@@ -21,6 +22,7 @@ function App() {
               <Route path="/repairs/*" element={<Repairs />} />
               <Route path="/rentals/*" element={<Rentals />} />
               <Route path="/sales/*" element={<Sales />} />
+              <Route path="/edits/*" element={<Edits />} />
             </Routes>
           </div>
           <Toaster />

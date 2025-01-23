@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Menu, Home, Car, WrenchIcon, DollarSign, CalendarRange } from 'lucide-react';
+import { Menu, Home, Car, WrenchIcon, DollarSign, CalendarRange, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useState } from 'react';
@@ -16,6 +16,7 @@ export function Navbar() {
     { href: '/repairs', icon: WrenchIcon, label: 'Repairs' },
     { href: '/rentals', icon: CalendarRange, label: 'Rentals' },
     { href: '/sales', icon: DollarSign, label: 'Sales' },
+    { href: '/edits', icon: Edit, label: 'Edits' },
   ];
 
   return (

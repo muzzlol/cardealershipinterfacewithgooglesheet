@@ -217,7 +217,7 @@ app.get('/api/cars', async (req, res) => {
       sellerContact: row[11],
       transportCost: Number(row[12]) || 0,
       inspectionCost: Number(row[13]) || 0,
-      otherCost: Number(row[14]) || 0,
+      otherCosts: Number(row[14]) || 0,
       totalCost: Number(row[15]),
       location: row[16],
       documents: row[17],
@@ -251,7 +251,7 @@ app.post('/api/cars', upload.fields([
       sellerContact,
       transportCost,
       inspectionCost,
-      otherCost,
+      otherCosts,
       location,
       investmentSplit
     } = req.body;
@@ -288,7 +288,7 @@ app.post('/api/cars', upload.fields([
       sellerContact,       // L - Seller Contact
       transportCost,    // M - Transport Cost
       inspectionCost,   // N - Inspection Cost
-      otherCost,        // O - Other Cost
+      otherCosts,        // O - Other Costs
       null,                // P - Total Cost (formula)
       location || '',      // Q - Location
       documentsUrl,        // R - Documents
@@ -321,7 +321,7 @@ app.post('/api/cars', upload.fields([
       sellerContact,
       transportCost,
       inspectionCost,
-      otherCost,
+      otherCosts,
       location,
       documents: documentsUrl,
       photo: photoUrl,
@@ -384,7 +384,7 @@ app.put('/api/cars/:id', upload.fields([
       updates.year || currentRow[3],
       updates.color || currentRow[4],
       updates.registrationNumber || currentRow[5],
-      updates.purchasePrice || currentRow[6],
+      Number(updates.purchasePrice) || Number(currentRow[6]),
       updates.purchaseDate || currentRow[7],
       currentRow[8], // currentStatus (formula-driven)
       updates.condition || currentRow[9],
@@ -392,7 +392,7 @@ app.put('/api/cars/:id', upload.fields([
       updates.sellerContact || currentRow[11],
       Number(updates.transportCost) || Number(currentRow[12]),
       Number(updates.inspectionCost) || Number(currentRow[13]),
-      Number(updates.otherCost) || Number(currentRow[14]),
+      Number(updates.otherCosts) || Number(currentRow[14]),
       currentRow[15], // totalCost (formula-driven)
       updates.location || currentRow[16],
       documentsUrl,
@@ -665,7 +665,7 @@ app.get('/api/recent-entries', async (req, res) => {
     }
 
     // Fetch last 5 entries from each sheet
-    const [carsResponse, repairsResponse, salesResponse] = await Promise.all([
+    const [carsResponse, repairsResponse, salesResponse, rentalsResponse] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
         range: RANGES.CARS,
@@ -678,83 +678,88 @@ app.get('/api/recent-entries', async (req, res) => {
         spreadsheetId: SPREADSHEET_ID,
         range: RANGES.SALES,
       }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: RANGES.RENTALS,
+      }),
     ]);
 
     // Safely get values with empty array fallback
-    const cars = (carsResponse.data.values || []).filter(row => row.length >= 14);
-    const repairs = (repairsResponse.data.values || []).filter(row => row.length >= 7);
-    const sales = (salesResponse.data.values || []).filter(row => row.length >= 10);
+    const cars = (carsResponse.data.values || []).slice(-5).map(row => ({
+      id: row[0],
+      make: row[1],
+      model: row[2],
+      year: parseInt(row[3]) || 0,
+      color: row[4],
+      registrationNumber: row[5],
+      purchasePrice: parseFloat(row[6]) || 0,
+      purchaseDate: row[7],
+      currentStatus: row[8],
+      condition: row[9],
+      sellerName: row[10],
+      sellerContact: row[11],
+      transportCost: parseFloat(row[12]) || 0,
+      inspectionCost: parseFloat(row[13]) || 0,
+      otherCosts: parseFloat(row[14]) || 0,
+      totalCost: parseFloat(row[15]) || 0,
+      location: row[16],
+      documents: row[17],
+      photo: row[18],
+      investmentSplit: row[19],
+      profitLoss: parseFloat(row[20]) || 0,
+      partnerReturns: row[21]
+    })).filter(car => car.id);
 
-    // Get the last 5 entries from each
-    const recentCars = cars.slice(-5).map(row => {
-      try {
-        return {
-          id: row[0],
-          make: row[1],
-          model: row[2],
-          year: parseInt(row[3]) || 0,
-          color: row[4],
-          registrationNumber: row[5],
-          purchasePrice: parseFloat(row[6]) || 0,
-          purchaseDate: row[7],
-          currentStatus: row[8],
-          condition: row[9],
-          sellerName: row[10],
-          sellerContact: row[11],
-          additionalCosts: row[12] ? JSON.parse(row[12]) : {},
-          totalCost: parseFloat(row[13]) || 0,
-        };
-      } catch (error) {
-        console.error('Error parsing car row:', error, row);
-        return null;
+    const repairs = (repairsResponse.data.values || []).slice(-5).map(row => ({
+      id: row[0],
+      carId: row[1],
+      repairDate: row[2],
+      description: row[3],
+      cost: parseFloat(row[4]) || 0,
+      mechanicName: row[5],
+      serviceProvider: {
+        name: row[6] || '',
+        contact: row[7] || '',
+        address: row[8] || ''
       }
-    }).filter(Boolean);
+    })).filter(repair => repair.id);
 
-    const recentRepairs = repairs.slice(-5).map(row => {
-      try {
-        return {
-          id: row[0],
-          carId: row[1],
-          repairDate: row[2],
-          description: row[3],
-          cost: parseFloat(row[4]) || 0,
-          mechanicName: row[5],
-          serviceProvider: {
-            name: row[6] || '',
-            contact: row[7] || '',
-            address: row[8] || ''
-          }
-        };
-      } catch (error) {
-        console.error('Error parsing repair row:', error, row);
-        return null;
-      }
-    }).filter(Boolean);
+    const sales = (salesResponse.data.values || []).slice(-5).map(row => ({
+      id: row[0],
+      carId: row[1],
+      saleDate: row[2],
+      salePrice: parseFloat(row[3]) || 0,
+      buyerName: row[4],
+      buyerContactInfo: row[5],
+      profit: parseFloat(row[6]) || 0,
+      paymentStatus: row[7],
+      totalRepairCosts: parseFloat(row[8]) || 0,
+      netProfit: parseFloat(row[9]) || 0
+    })).filter(sale => sale.id);
 
-    const recentSales = sales.slice(-5).map(row => {
-      try {
-        return {
-          id: row[0],
-          carId: row[1],
-          saleDate: row[2],
-          salePrice: parseFloat(row[3]) || 0,
-          buyerName: row[4],
-          buyerContactInfo: row[5],
-          profit: parseFloat(row[6]) || 0,
-          paymentStatus: row[7],
-          totalRepairCosts: parseFloat(row[8]) || 0,
-          netProfit: parseFloat(row[9]) || 0,
-        };
-      } catch (error) {
-        console.error('Error parsing sale row:', error, row);
-        return null;
-      }
-    }).filter(Boolean);
+    const rentals = (rentalsResponse.data.values || []).slice(-5).map(row => ({
+      id: row[0],
+      carId: row[1],
+      customerName: row[2],
+      customerContact: row[3],
+      startDate: row[4],
+      returnDate: row[5],
+      daysLeft: parseInt(row[6]) || 0,
+      daysOut: parseInt(row[7]) || 0,
+      dailyRate: parseFloat(row[8]) || 0,
+      totalRentEarned: parseFloat(row[9]) || 0,
+      damageFee: parseFloat(row[10]) || 0,
+      lateFee: parseFloat(row[11]) || 0,
+      otherFee: parseFloat(row[12]) || 0,
+      additionalCostsDescription: row[13] || '',
+      rentalStatus: row[14] || 'Active'
+    })).filter(rental => rental.id);
 
     res.json({
-      cars: recentCars,
-      repairs: recentRepairs,
-      sales: recentSales,
+      cars,
+      repairs,
+      sales,
+      rentals,
     });
   } catch (error) {
     console.error('Error fetching recent entries:', error);
@@ -773,7 +778,7 @@ app.put('/api/repairs/:id', async (req, res) => {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Repairs!A2:G',
+      range: RANGES.REPAIRS
     });
 
     const rows = response.data.values || [];
@@ -783,26 +788,32 @@ app.put('/api/repairs/:id', async (req, res) => {
       return res.status(404).json({ error: 'Repair not found' });
     }
 
+    const currentRow = rows[rowIndex];
     const updatedRow = [
       id,
-      updates.carId,
-      updates.repairDate,
-      updates.description,
-      updates.cost,
-      updates.mechanicName,
-      JSON.stringify(updates.serviceProvider),
+      updates.carId || currentRow[1],
+      updates.repairDate || currentRow[2],
+      updates.description || currentRow[3],
+      Number(updates.cost) || Number(currentRow[4]),
+      updates.mechanicName || currentRow[5],
+      updates.serviceProvider?.name || currentRow[6],
+      updates.serviceProvider?.contact || currentRow[7],
+      updates.serviceProvider?.address || currentRow[8]
     ];
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: `Repairs!A${rowIndex + 2}`,
-      valueInputOption: 'RAW',
+      valueInputOption: 'USER_ENTERED',
       requestBody: {
-        values: [updatedRow],
-      },
+        values: [updatedRow]
+      }
     });
 
-    res.json({ message: 'Repair updated successfully', data: updates });
+    res.json({
+      message: 'Repair updated successfully',
+      data: updates
+    });
   } catch (error) {
     console.error('Error updating repair:', error);
     res.status(500).json({ error: 'Failed to update repair' });
@@ -817,7 +828,7 @@ app.put('/api/sales/:id', async (req, res) => {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Sales!A2:J',
+      range: RANGES.SALES
     });
 
     const rows = response.data.values || [];
@@ -827,29 +838,33 @@ app.put('/api/sales/:id', async (req, res) => {
       return res.status(404).json({ error: 'Sale not found' });
     }
 
+    const currentRow = rows[rowIndex];
     const updatedRow = [
       id,
-      updates.carId,
-      updates.saleDate,
-      updates.salePrice,
-      updates.buyerName,
-      updates.buyerContactInfo,
-      updates.profit,
-      updates.paymentStatus,
-      updates.totalRepairCosts,
-      updates.netProfit,
+      updates.carId || currentRow[1],
+      updates.saleDate || currentRow[2],
+      Number(updates.salePrice) || Number(currentRow[3]),
+      updates.buyerName || currentRow[4],
+      updates.buyerContactInfo || currentRow[5],
+      currentRow[6], // profit (formula-driven)
+      updates.paymentStatus || currentRow[7],
+      currentRow[8], // totalRepairCosts (formula-driven)
+      currentRow[9]  // netProfit (formula-driven)
     ];
 
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: `Sales!A${rowIndex + 2}`,
-      valueInputOption: 'RAW',
+      valueInputOption: 'USER_ENTERED',
       requestBody: {
-        values: [updatedRow],
-      },
+        values: [updatedRow]
+      }
     });
 
-    res.json({ message: 'Sale updated successfully', data: updates });
+    res.json({
+      message: 'Sale updated successfully',
+      data: updates
+    });
   } catch (error) {
     console.error('Error updating sale:', error);
     res.status(500).json({ error: 'Failed to update sale' });
@@ -995,7 +1010,7 @@ app.put('/api/rentals/:id', async (req, res) => {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Rentals!A2:O',
+      range: RANGES.RENTALS
     });
 
     const rows = response.data.values || [];
@@ -1005,22 +1020,23 @@ app.put('/api/rentals/:id', async (req, res) => {
       return res.status(404).json({ error: 'Rental not found' });
     }
 
+    const currentRow = rows[rowIndex];
     const updatedRow = [
       id,
-      updates.carId,
-      updates.customerName,
-      updates.customerContact,
-      updates.startDate,
-      updates.returnDate,
-      '', // daysLeft (formula-driven)
-      '', // daysOut (formula-driven)
-      updates.dailyRate,
-      '', // totalRentEarned (formula-driven)
-      updates.damageFee || '',
-      updates.lateFee || '',
-      updates.otherFee || '',
-      updates.additionalCostsDescription || '',
-      '' // rentalStatus (formula-driven)
+      updates.carId || currentRow[1],
+      updates.customerName || currentRow[2],
+      updates.customerContact || currentRow[3],
+      updates.startDate || currentRow[4],
+      updates.returnDate || currentRow[5],
+      currentRow[6], // daysLeft (formula-driven)
+      currentRow[7], // daysOut (formula-driven)
+      Number(updates.dailyRate) || Number(currentRow[8]),
+      currentRow[9], // totalRentEarned (formula-driven)
+      Number(updates.damageFee) || Number(currentRow[10]),
+      Number(updates.lateFee) || Number(currentRow[11]),
+      Number(updates.otherFee) || Number(currentRow[12]),
+      updates.additionalCostsDescription || currentRow[13],
+      currentRow[14] // rentalStatus (formula-driven)
     ];
 
     await sheets.spreadsheets.values.update({
@@ -1028,11 +1044,14 @@ app.put('/api/rentals/:id', async (req, res) => {
       range: `Rentals!A${rowIndex + 2}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
-        values: [updatedRow],
-      },
+        values: [updatedRow]
+      }
     });
 
-    res.json({ message: 'Rental updated successfully', data: updates });
+    res.json({
+      message: 'Rental updated successfully',
+      data: updates
+    });
   } catch (error) {
     console.error('Error updating rental:', error);
     res.status(500).json({ error: 'Failed to update rental' });

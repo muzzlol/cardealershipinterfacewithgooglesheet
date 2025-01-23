@@ -1,23 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { format, parseISO } from 'date-fns';
 import { apiClient } from '@/lib/api-client';
-import { Car, Repair, Sale } from '@/types';
-import { useToast } from '@/components/ui/use-toast';
+import { Car, Repair, Sale, Rental } from '@/types';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DatePicker } from '@/components/ui/date-picker';
+import { useToast } from '@/components/ui/use-toast';
 import { PageContainer } from '@/components/layout/page-container';
 import { Loader2 } from 'lucide-react';
 
@@ -25,25 +17,31 @@ interface RecentEntries {
   cars: Car[];
   repairs: Repair[];
   sales: Sale[];
+  rentals: Rental[];
 }
 
-type EntryType = 'car' | 'repair' | 'sale';
+type EntryType = 'car' | 'repair' | 'sale' | 'rental';
 
 interface EditableEntry {
   type: EntryType;
-  data: Car | Repair | Sale | null;
+  data: Car | Repair | Sale | Rental;
   id: string;
 }
 
+const EDITABLE_FIELDS: Record<EntryType, string[]> = {
+  car: ['make', 'model', 'year', 'color', 'registrationNumber', 'purchasePrice', 'purchaseDate', 'condition', 'sellerName', 'sellerContact', 'transportCost', 'inspectionCost', 'otherCosts', 'location', 'investmentSplit'],
+  repair: ['carId', 'repairDate', 'description', 'mechanicName', 'cost', 'serviceProvider'],
+  sale: ['carId', 'saleDate', 'salePrice', 'buyerName', 'buyerContactInfo', 'paymentStatus'],
+  rental: ['carId', 'customerName', 'customerContact', 'startDate', 'returnDate', 'dailyRate', 'damageFee', 'lateFee', 'otherFee', 'additionalCostsDescription']
+};
+
 export function Edits() {
-  const [loading, setLoading] = useState(true);
-  const [entries, setEntries] = useState<RecentEntries>({ cars: [], repairs: [], sales: [] });
-  const [selectedEntries, setSelectedEntries] = useState<Record<EntryType, EditableEntry>>({
-    car: { type: 'car', data: null, id: '' },
-    repair: { type: 'repair', data: null, id: '' },
-    sale: { type: 'sale', data: null, id: '' },
-  });
-  const [editedData, setEditedData] = useState<Partial<Record<EntryType, Car | Repair | Sale>>>({});
+  const navigate = useNavigate();
+  const [entries, setEntries] = useState<RecentEntries>({ cars: [], repairs: [], sales: [], rentals: [] });
+  const [selectedEntry, setSelectedEntry] = useState<EditableEntry | null>(null);
+  const [editableData, setEditableData] = useState<Record<string, any> | null>(null);
+  const [availableCars, setAvailableCars] = useState<Car[]>([]);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -52,64 +50,84 @@ export function Edits() {
 
   const fetchRecentEntries = async () => {
     try {
-      const response = await apiClient.get<RecentEntries>('/recent-entries');
-      setEntries(response);
+      const response = await apiClient.getRecentEntries();
+      setEntries({
+        cars: response.cars || [],
+        repairs: response.repairs || [],
+        sales: response.sales || [],
+        rentals: response.rentals || []
+      });
     } catch (error) {
+      console.error('Error fetching recent entries:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch recent entries',
         variant: 'destructive',
       });
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleEntrySelect = (type: EntryType, id: string) => {
-    const entryList = entries[`${type}s`];
-    const selectedEntry = entryList.find((entry) => entry.id === id);
-    setSelectedEntries((prev) => ({
-      ...prev,
-      [type]: { type, data: selectedEntry, id },
-    }));
-    setEditedData((prev) => ({ ...prev, [type]: { ...selectedEntry } }));
+  const handleEntrySelect = (type: EntryType, data: Car | Repair | Sale | Rental) => {
+    setSelectedEntry({ type, data, id: data.id });
+    const editableFields = EDITABLE_FIELDS[type];
+    const editableData = Object.fromEntries(
+      Object.entries(data).filter(([key]) => editableFields.includes(key))
+    );
+    setEditableData(editableData);
   };
 
-  const handleInputChange = (type: EntryType, field: string, value: string | number) => {
-    setEditedData((prev) => {
-      const currentData = { ...prev[type] } as Record<string, any>;
-      
-      if (field.includes('.')) {
-        const [parent, child] = field.split('.');
-        currentData[parent] = {
-          ...currentData[parent],
-          [child]: value,
-        };
-      } else {
-        currentData[field] = value;
-      }
-      
-      return { ...prev, [type]: currentData };
+  const handleInputChange = (field: string, value: any) => {
+    if (!editableData || !selectedEntry) return;
+
+    setEditableData(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        [field]: value
+      };
     });
   };
 
-  const handleSave = async (type: EntryType) => {
+  const handleSave = async () => {
+    if (!selectedEntry || !editableData) return;
+
     try {
       setLoading(true);
-      const id = selectedEntries[type].id;
-      await apiClient.put(`/${type}s/${id}`, editedData[type]);
-      
-      toast({
-        title: 'Success',
-        description: `${type.charAt(0).toUpperCase() + type.slice(1)} updated successfully`,
-      });
-      
-      await fetchRecentEntries();
+      let response;
+      switch (selectedEntry.type) {
+        case 'car': {
+          const formData = new FormData();
+          Object.entries(editableData).forEach(([key, value]) => {
+            formData.append(key, String(value));
+          });
+          response = await apiClient.updateCar(selectedEntry.id, formData);
+          break;
+        }
+        case 'repair':
+          response = await apiClient.updateRepair(selectedEntry.id, editableData);
+          break;
+        case 'sale':
+          response = await apiClient.updateSale(selectedEntry.id, editableData);
+          break;
+        case 'rental':
+          response = await apiClient.updateRental(selectedEntry.id, editableData);
+          break;
+      }
+
+      if (response) {
+        await fetchRecentEntries();
+        setSelectedEntry(null);
+        setEditableData(null);
+        toast({
+          title: 'Success',
+          description: `${selectedEntry.type.charAt(0).toUpperCase() + selectedEntry.type.slice(1)} updated successfully`,
+        });
+      }
     } catch (error) {
       console.error('Error updating:', error);
       toast({
         title: 'Error',
-        description: `Failed to update ${type}`,
+        description: `Failed to update ${selectedEntry.type}`,
         variant: 'destructive',
       });
     } finally {
@@ -117,197 +135,243 @@ export function Edits() {
     }
   };
 
-  const renderField = (type: EntryType, field: string, editedEntry: any) => {
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
-      return (
-        <Input
-          value={editedEntry?.[parent]?.[child] || ''}
-          onChange={(e) => handleInputChange(
-            type,
-            field,
-            field.includes('rice') || field.includes('cost') || field.includes('profit')
-              ? parseFloat(e.target.value)
-              : e.target.value
-          )}
-          type={field.includes('rice') || field.includes('cost') || field.includes('profit') ? 'number' : 'text'}
-        />
-      );
-    }
+  const renderField = (field: string, value: any) => {
+    if (!selectedEntry) return null;
 
-    if (field === 'currentStatus') {
+    const renderSelect = (options: { value: string; label: string }[]) => (
+      <Select 
+        value={String(value || '')} 
+        onValueChange={(newValue) => handleInputChange(field, newValue)}
+        disabled={field === 'carId' && selectedEntry.type !== 'car'}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder={`Select ${field}`} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+
+    if (field === 'carId' && (selectedEntry?.type === 'repair' || selectedEntry?.type === 'sale' || selectedEntry?.type === 'rental')) {
+      const car = availableCars.find(c => c.id === value);
       return (
-        <Select
-          value={editedEntry?.[field] || ''}
-          onValueChange={(value) => handleInputChange(type, field, value)}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Available">Available</SelectItem>
-            <SelectItem value="Sold">Sold</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center space-x-2 p-2 bg-neutral-100 dark:bg-neutral-900 rounded-md">
+          <span className="text-sm">Car #{value}</span>
+          {car && <span className="text-sm text-neutral-500">({car.make} {car.model} - {car.registrationNumber})</span>}
+        </div>
       );
     }
 
     if (field === 'paymentStatus') {
+      return renderSelect([
+        { value: 'Paid', label: 'Paid' },
+        { value: 'Unpaid', label: 'Unpaid' }
+      ]);
+    }
+
+    if (field === 'condition') {
+      return renderSelect([
+        { value: 'Excellent', label: 'Excellent' },
+        { value: 'Good', label: 'Good' },
+        { value: 'Fair', label: 'Fair' },
+        { value: 'Poor', label: 'Poor' }
+      ]);
+    }
+
+    if (field === 'startDate' || field === 'returnDate' || field === 'purchaseDate' || field === 'saleDate' || field === 'repairDate') {
       return (
-        <Select
-          value={editedEntry?.[field] || ''}
-          onValueChange={(value) => handleInputChange(type, field, value)}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Paid">Paid</SelectItem>
-            <SelectItem value="Pending">Pending</SelectItem>
-            <SelectItem value="Unpaid">Unpaid</SelectItem>
-          </SelectContent>
-        </Select>
+        <DatePicker
+          value={value ? new Date(String(value)) : undefined}
+          onChange={(date) => handleInputChange(field, date ? format(date, 'yyyy-MM-dd') : null)}
+        />
+      );
+    }
+
+    if (field === 'purchasePrice' || field === 'salePrice' || field === 'transportCost' || field === 'inspectionCost' || field === 'otherCosts' || field === 'damageFee' || field === 'lateFee' || field === 'otherFee' || field === 'dailyRate' || field === 'cost') {
+      return (
+        <Input
+          type="number"
+          value={String(value || '')}
+          onChange={(e) => handleInputChange(field, parseFloat(e.target.value) || 0)}
+        />
+      );
+    }
+
+    if (field === 'year') {
+      return (
+        <Input
+          type="number"
+          value={String(value || '')}
+          onChange={(e) => handleInputChange(field, parseInt(e.target.value) || new Date().getFullYear())}
+        />
+      );
+    }
+
+    if (field === 'serviceProvider') {
+      return (
+        <div className="space-y-2">
+          <div>
+            <Label>Name</Label>
+            <Input
+              value={value?.name || ''}
+              onChange={(e) => handleInputChange(`${field}.name`, e.target.value)}
+            />
+          </div>
+          <div>
+            <Label>Contact</Label>
+            <Input
+              value={value?.contact || ''}
+              onChange={(e) => handleInputChange(`${field}.contact`, e.target.value)}
+            />
+          </div>
+          <div>
+            <Label>Address</Label>
+            <Input
+              value={value?.address || ''}
+              onChange={(e) => handleInputChange(`${field}.address`, e.target.value)}
+            />
+          </div>
+        </div>
       );
     }
 
     return (
       <Input
-        value={editedEntry?.[field] || ''}
-        onChange={(e) => handleInputChange(
-          type,
-          field,
-          field.includes('rice') || field.includes('cost') || field.includes('profit')
-            ? parseFloat(e.target.value)
-            : field === 'year'
-            ? parseInt(e.target.value)
-            : e.target.value
-        )}
-        type={
-          field.includes('rice') || field.includes('cost') || field.includes('profit') || field === 'year'
-            ? 'number'
-            : field.includes('Date')
-            ? 'date'
-            : 'text'
-        }
+        type="text"
+        value={String(value || '')}
+        onChange={(e) => handleInputChange(field, e.target.value)}
       />
     );
   };
 
-  const renderEditCard = (type: EntryType, fields: string[]) => {
-    const entry = selectedEntries[type];
-    const editedEntry = editedData[type];
-    const entryList = entries[`${type}s`];
+  const renderEditCard = () => {
+    if (!selectedEntry || !editableData) return null;
 
-    if (!entryList?.length) return null;
+    const fields = EDITABLE_FIELDS[selectedEntry.type];
 
     return (
-      <Card className="w-full">
+      <Card className="w-full max-w-2xl mx-auto mt-4">
         <CardHeader>
-          <CardTitle className="capitalize">{type}</CardTitle>
+          <CardTitle>Edit {selectedEntry.type.charAt(0).toUpperCase() + selectedEntry.type.slice(1)}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <Select
-              value={entry.id}
-              onValueChange={(value) => handleEntrySelect(type, value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={`Select ${type}`} />
-              </SelectTrigger>
-              <SelectContent>
-                {entryList.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {type === 'car' && 'make' in item ? `${item.make} ${item.model}` :
-                     type === 'repair' && 'description' in item ? `${item.description}` :
-                     'buyerName' in item ? `${item.buyerName}` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {entry.data && (
-              <div className="grid grid-cols-2 gap-4">
-                {fields.map((field) => (
-                  <div key={field} className="space-y-2">
-                    <label className="text-sm font-medium capitalize">
-                      {field.replace(/([A-Z])/g, ' $1').trim()}
-                    </label>
-                    {renderField(type, field, editedEntry)}
-                  </div>
-                ))}
+          <div className="grid gap-4">
+            {fields.map((field) => (
+              <div key={field} className="grid gap-2">
+                <Label htmlFor={field}>{field.charAt(0).toUpperCase() + field.slice(1)}</Label>
+                {renderField(field, editableData[field])}
               </div>
-            )}
+            ))}
           </div>
         </CardContent>
-        {entry.data && (
-          <CardFooter className="justify-end space-x-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedEntries((prev) => ({
-                  ...prev,
-                  [type]: { type, data: null, id: '' },
-                }));
-                setEditedData((prev) => ({ ...prev, [type]: null }));
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => handleSave(type)}
-              disabled={loading || JSON.stringify(editedEntry) === JSON.stringify(entry.data)}
-            >
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Save Changes
-            </Button>
-          </CardFooter>
-        )}
+        <CardFooter className="flex justify-end gap-4">
+          <Button variant="outline" onClick={() => {
+            setSelectedEntry(null);
+            setEditableData(null);
+          }}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save'
+            )}
+          </Button>
+        </CardFooter>
       </Card>
+    );
+  };
+
+  const renderEntryButton = (type: EntryType, data: Car | Repair | Sale | Rental) => {
+    let displayText = '';
+    
+    switch (type) {
+      case 'car':
+        const car = data as Car;
+        displayText = `#${car.id} - ${car.make} ${car.model} (${car.registrationNumber})`;
+        break;
+      case 'repair':
+        const repair = data as Repair;
+        displayText = `#${repair.id} - ${format(new Date(repair.repairDate), 'dd/MM/yyyy')} - ${repair.description} (Car #${repair.carId})`;
+        break;
+      case 'sale':
+        const sale = data as Sale;
+        displayText = `#${sale.id} - ${format(new Date(sale.saleDate), 'dd/MM/yyyy')} - ${sale.buyerName} (Car #${sale.carId})`;
+        break;
+      case 'rental':
+        const rental = data as Rental;
+        displayText = `#${rental.id} - ${rental.customerName} - ${format(new Date(rental.startDate), 'dd/MM/yyyy')} to ${format(new Date(rental.returnDate), 'dd/MM/yyyy')} (Car #${rental.carId})`;
+        break;
+    }
+
+    return (
+      <Button
+        key={data.id}
+        variant="outline"
+        className="w-full justify-start rounded-none border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-900"
+        onClick={() => handleEntrySelect(type, data)}
+      >
+        {displayText}
+      </Button>
     );
   };
 
   return (
     <PageContainer>
-      <div className="space-y-8">
-        {renderEditCard('car', [
-          'make',
-          'model',
-          'year',
-          'color',
-          'registrationNumber',
-          'purchasePrice',
-          'purchaseDate',
-          'currentStatus',
-          'condition',
-          'sellerName',
-          'sellerContact',
-          'additionalCosts.transport',
-          'additionalCosts.inspection',
-          'additionalCosts.other',
-        ])}
-
-        {renderEditCard('repair', [
-          'carId',
-          'repairDate',
-          'description',
-          'cost',
-          'mechanicName',
-          'serviceProvider.name',
-          'serviceProvider.contact',
-          'serviceProvider.address',
-        ])}
-
-        {renderEditCard('sale', [
-          'carId',
-          'saleDate',
-          'salePrice',
-          'buyerName',
-          'buyerContactInfo',
-          'profit',
-          'paymentStatus',
-          'totalRepairCosts',
-          'netProfit',
-        ])}
+      <div className="grid gap-4">
+        <h1 className="text-2xl font-bold">Recent Entries</h1>
+        <div className="grid gap-4 md:grid-cols-2">
+          {entries.cars.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Cars</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {entries.cars.map((car) => renderEntryButton('car', car))}
+              </CardContent>
+            </Card>
+          )}
+          {entries.repairs.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Repairs</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {entries.repairs.map((repair) => renderEntryButton('repair', repair))}
+              </CardContent>
+            </Card>
+          )}
+          {entries.sales.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Sales</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {entries.sales.map((sale) => renderEntryButton('sale', sale))}
+              </CardContent>
+            </Card>
+          )}
+          {entries.rentals.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Rentals</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {entries.rentals.map((rental) => renderEntryButton('rental', rental))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+        {renderEditCard()}
       </div>
     </PageContainer>
   );
