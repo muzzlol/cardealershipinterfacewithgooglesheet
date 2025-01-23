@@ -40,11 +40,6 @@ const validateEnvironmentVariables = () => {
   }
 };
 
-// Helper function for sheet operations
-const getSheetRange = (range: string, startRow: number, endRow: number, columns: string) => {
-  return `${range}!A${startRow}:${columns}${endRow}`;
-};
-
 const createPaginatedResponse = <T>(
   data: T[],
   page: number,
@@ -89,7 +84,7 @@ const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 
 validateEnvironmentVariables();
 
-// Updated Sheet ranges to include all necessary columns
+// SHEET RNGES
 const RANGES = {
   CARS: 'Cars!A2:V',        // 22 columns (A to V)
   REPAIRS: 'Repairs!A2:I',  // 9 columns (A to I)
@@ -193,7 +188,7 @@ app.get('/api/cars', async (req, res) => {
   try {
       const [response, countResponse] = await Promise.all([sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range : getSheetRange('Cars', startRow, endRow, 'V')
+        range : RANGES.CARS
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
@@ -433,10 +428,10 @@ app.get('/api/repairs', async (req, res) => {
   const endRow = startRow + limit - 1
   try {
     const carId = req.query.carId;
-    const [response, currentResponse] = await Promise.all([
+    const [response, countResponse] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range : getSheetRange('Repairs', startRow, endRow, 'I')
+        range : RANGES.REPAIRS
     }),
     sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -464,7 +459,7 @@ app.get('/api/repairs', async (req, res) => {
       ? repairs.filter(repair => repair.carId === carId)
       : repairs;
 
-    const totalItems = (currentResponse.data.values?.length || 0) - 1;
+    const totalItems = (countResponse.data.values?.length || 0) - 1;
     res.json(createPaginatedResponse(filteredRepairs, page, limit, totalItems));
   } catch (error) {
     console.error('Error fetching repairs:', error);
@@ -536,7 +531,7 @@ app.get('/api/sales', async (req, res) => {
     const [response, countResponse] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: getSheetRange('Sales', startRow, endRow, 'J')
+        range: RANGES.SALES
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
@@ -874,12 +869,10 @@ app.put('/api/sales/:id', async (req, res) => {
 // Rental endpoints
 app.get('/api/rentals', async (req, res) => {
   const { page, limit } = validatePaginationParams(req.query);
-  const startRow = (page - 1) * limit + 2;
-  const endRow = startRow + limit - 1;
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: getSheetRange('Rentals', startRow, endRow, 'O'),
+      range: RANGES.RENTALS
     });
 
     const rentals = response.data.values?.map((row: any[]) => ({
@@ -897,7 +890,7 @@ app.get('/api/rentals', async (req, res) => {
       lateFee: Number(row[11]) || 0,
       otherFee: Number(row[12]) || 0,
       additionalCostsDescription: row[13] || '',
-      rentalStatus: row[14] || 'Active' // Ensure rental status is included
+      rentalStatus: row[14] // Ensure rental status is included
     })) || [];
 
     const totalResponse = await sheets.spreadsheets.values.get({
@@ -1055,6 +1048,113 @@ app.put('/api/rentals/:id', async (req, res) => {
   } catch (error) {
     console.error('Error updating rental:', error);
     res.status(500).json({ error: 'Failed to update rental' });
+  }
+});
+
+// Dashboard endpoints
+app.get('/api/dashboard', async (req, res) => {
+  try {
+    const [carsResponse, salesResponse, rentalsResponse, repairsResponse] = await Promise.all([
+      sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: RANGES.CARS }),
+      sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: RANGES.SALES }),
+      sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: RANGES.RENTALS }),
+      sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: RANGES.REPAIRS })
+    ]);
+
+    const cars = carsResponse.data.values || [];
+    const sales = salesResponse.data.values || [];
+    const rentals = rentalsResponse.data.values || [];
+    const repairs = repairsResponse.data.values || [];
+
+    // Calculate total cars
+    const totalCars = cars.length;
+
+    // Calculate total revenue (from sales and rentals)
+    const salesRevenue = sales.reduce((total, sale) => total + (Number(sale[3]) || 0), 0);
+    const rentalRevenue = rentals.reduce((total, rental) => total + (Number(rental[9]) || 0), 0);
+    const totalRevenue = salesRevenue + rentalRevenue;
+
+    // Calculate active rentals
+    const activeRentals = rentals.filter(rental => rental[14] === 'Active').length;
+
+    // Calculate profit margin
+    const totalCosts = cars.reduce((total, car) => total + (Number(car[15]) || 0), 0);
+    const profitMargin = totalRevenue > 0 ? ((totalRevenue - totalCosts) / totalRevenue) * 100 : 0;
+
+    // Get monthly financial data
+    const monthlyData = Array.from({ length: 6 }, (_, i) => {
+      const month = new Date();
+      month.setMonth(month.getMonth() - i);
+      const monthStr = month.toLocaleString('default', { month: 'short' });
+      
+      const monthSales = sales.filter(sale => new Date(sale[2]).getMonth() === month.getMonth());
+      const monthRentals = rentals.filter(rental => new Date(rental[4]).getMonth() === month.getMonth());
+      const monthRepairs = repairs.filter(repair => new Date(repair[2]).getMonth() === month.getMonth());
+
+      const revenue = monthSales.reduce((total, sale) => total + (Number(sale[3]) || 0), 0) +
+                     monthRentals.reduce((total, rental) => total + (Number(rental[9]) || 0), 0);
+      const expenses = monthRepairs.reduce((total, repair) => total + (Number(repair[4]) || 0), 0);
+      const profit = revenue - expenses;
+
+      return { month: monthStr, revenue, expenses, profit };
+    }).reverse();
+
+    // Get car status distribution
+    const carStatusDistribution = {
+      Available: cars.filter(car => car[8] === 'Available').length,
+      Sold: cars.filter(car => car[8] === 'Sold').length,
+      'On Rent': cars.filter(car => car[8] === 'On Rent').length
+    };
+
+    // Get recent sales data
+    const recentSales = sales.slice(-5).map(sale => {
+      const car = cars.find(car => car[0] === sale[1]);
+      return {
+        id: sale[0],
+        carId: sale[1],
+        make: car ? car[1] : '',
+        model: car ? car[2] : '',
+        salePrice: Number(sale[3]),
+        profit: Number(sale[6])
+      };
+    });
+
+    // Get top performing partners data
+    const partnersResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: RANGES.PARTNERS
+    });
+    const partners = partnersResponse.data.values || [];
+    const topPartners = partners.map(partner => ({
+      name: partner[1],
+      profit: Number(partner[3]) || 0
+    })).sort((a, b) => b.profit - a.profit);
+
+    // Get rental revenue trend
+    const rentalRevenueTrend = monthlyData.map(data => ({
+      month: data.month,
+      revenue: rentals
+        .filter(rental => new Date(rental[4]).toLocaleString('default', { month: 'short' }) === data.month)
+        .reduce((total, rental) => total + (Number(rental[9]) || 0), 0)
+    }));
+
+    res.json({
+      overview: {
+        totalCars,
+        totalRevenue,
+        activeRentals,
+        profitMargin
+      },
+      financialData: monthlyData,
+      carStatusData: Object.entries(carStatusDistribution).map(([name, value]) => ({ name, value })),
+      recentSales,
+      topPartners,
+      rentalRevenueTrend
+    });
+
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+    res.status(500).json({ error: 'Failed to fetch dashboard data' });
   }
 });
 

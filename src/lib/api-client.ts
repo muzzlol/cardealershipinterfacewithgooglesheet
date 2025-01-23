@@ -165,6 +165,44 @@ class ApiClient {
   }> {
     return this.request('/recent-entries');
   }
+
+  // Dashboard Data
+  async getDashboardData(): Promise<{
+    overview: {
+      totalCars: number;
+      totalRevenue: number;
+      activeRentals: number;
+      profitMargin: number;
+    };
+    financialData: Array<{
+      month: string;
+      revenue: number;
+      expenses: number;
+      profit: number;
+    }>;
+    carStatusData: Array<{
+      name: string;
+      value: number;
+    }>;
+    recentSales: Array<{
+      id: string;
+      carId: string;
+      make: string;
+      model: string;
+      salePrice: number;
+      profit: number;
+    }>;
+    topPartners: Array<{
+      name: string;
+      profit: number;
+    }>;
+    rentalRevenueTrend: Array<{
+      month: string;
+      revenue: number;
+    }>;
+  }> {
+    return this.request('/dashboard');
+  }
 }
 
 export const apiClient = new ApiClient();
