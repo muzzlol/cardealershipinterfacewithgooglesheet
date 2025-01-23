@@ -23,7 +23,7 @@ import { Rental } from '@/types';
 import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/components/ui/use-toast';
 import { PageContainer } from '@/components/layout/page-container';
-import { format, differenceInDays } from 'date-fns';
+import { format } from 'date-fns';
 import { LimitSelector } from '@/components/ui/limit-selector';
 
 export function RentalList() {

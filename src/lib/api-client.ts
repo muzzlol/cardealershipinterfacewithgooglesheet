@@ -1,5 +1,10 @@
 const API_BASE_URL = 'http://localhost:3000/api';
-import { Sale, Repair, Partner, Rental } from '@/types';
+
+import { 
+  Car, Repair, Sale, Partner, Rental,
+  CarInput, RepairInput, SaleInput, RentalInput, PartnerInput,
+  CarUpdate, RepairUpdate, SaleUpdate, RentalUpdate, PartnerUpdate
+} from '@/types';
 
 interface PaginatedResponse<T> {
   data: T[];
@@ -17,40 +22,19 @@ interface GroupedRepairs {
   repairs: Repair[];
 }
 
-interface Car {
-  id: string;
-  make: string;
-  model: string;
-  year: number;
-  color: string;
-  registrationNumber: string;
-  purchasePrice: number;
-  purchaseDate: string;
-  currentStatus: 'Available' | 'Sold' | 'On Rent';
-  condition: string;
-  location?: string;
-  sellerName: string;
-  sellerContact: string;
-  transportCost: number;
-  inspectionCost: number;
-  otherCost: number;
-  totalCost: number;
-  documents?: string;
-  photo?: string;
-  investmentSplit: string;
-  profitLoss: number;
-  partnerReturns: string;
-}
-
 class ApiClient {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || 'api request failed');
+      throw new Error(error.message || 'API request failed');
     }
 
     return response.json();
@@ -68,7 +52,8 @@ class ApiClient {
   async addCar(carData: FormData): Promise<Car> {
     return this.request<Car>('/cars', {
       method: 'POST',
-      body: carData, // FormData will automatically set the correct Content-Type
+      body: carData,
+      headers: {} // Let browser set correct Content-Type for FormData
     });
   }
 
@@ -76,6 +61,7 @@ class ApiClient {
     return this.request<Car>(`/cars/${id}`, {
       method: 'PUT',
       body: carData,
+      headers: {} // Let browser set correct Content-Type for FormData
     });
   }
 
@@ -84,22 +70,16 @@ class ApiClient {
     return this.request<PaginatedResponse<Sale>>(`/sales?page=${page}&limit=${limit}`);
   }
 
-  async addSale(sale: Omit<Sale, 'id' | 'profit' | 'totalRepairCosts' | 'netProfit'>): Promise<Sale> {
+  async addSale(sale: SaleInput): Promise<Sale> {
     return this.request<Sale>('/sales', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(sale),
     });
   }
 
-  async updateSale(id: string, sale: Partial<Sale>): Promise<Sale> {
+  async updateSale(id: string, sale: Partial<SaleInput>): Promise<Sale> {
     return this.request<Sale>(`/sales/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(sale),
     });
   }
@@ -113,19 +93,16 @@ class ApiClient {
     return this.request<Repair[]>(`/repairs?carId=${carId}`);
   }
 
-  async addRepair(repair: Omit<Repair, 'id'>): Promise<Repair> {
+  async addRepair(repair: RepairInput): Promise<Repair> {
     return this.request<Repair>('/repairs', {
       method: 'POST',
       body: JSON.stringify(repair),
     });
   }
 
-  async updateRepair(id: string, repair: Partial<Repair>): Promise<Repair> {
+  async updateRepair(id: string, repair: Partial<RepairInput>): Promise<Repair> {
     return this.request<Repair>(`/repairs/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(repair),
     });
   }
@@ -160,14 +137,14 @@ class ApiClient {
     return this.request<PaginatedResponse<Rental>>(`/rentals?page=${page}&limit=${limit}`);
   }
 
-  async addRental(rental: Omit<Rental, 'id' | 'daysLeft' | 'daysOut' | 'totalRentEarned' | 'rentalStatus'>): Promise<Rental> {
+  async addRental(rental: RentalInput): Promise<Rental> {
     return this.request<Rental>('/rentals', {
       method: 'POST',
       body: JSON.stringify(rental),
     });
   }
 
-  async updateRental(id: string, rental: Partial<Rental>): Promise<Rental> {
+  async updateRental(id: string, rental: Partial<RentalInput>): Promise<Rental> {
     return this.request<Rental>(`/rentals/${id}`, {
       method: 'PUT',
       body: JSON.stringify(rental),
@@ -184,6 +161,7 @@ class ApiClient {
     cars: Car[];
     repairs: Repair[];
     sales: Sale[];
+    rentals: Rental[];
   }> {
     return this.request('/recent-entries');
   }
