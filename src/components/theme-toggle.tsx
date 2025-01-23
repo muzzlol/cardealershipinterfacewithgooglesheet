@@ -5,7 +5,11 @@ import { Moon, Sun } from "lucide-react"
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme()
-
+  if (localStorage.theme === "dark") {
+    document.documentElement.classList.add("dark")
+  } else {
+    document.documentElement.classList.remove("dark")
+  }
   return (
     <div className="flex items-center gap-2">
       <Sun className="h-4 w-4 text-slate-500 dark:text-slate-400" />

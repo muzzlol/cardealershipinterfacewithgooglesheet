@@ -74,6 +74,65 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Authentication endpoint
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    // Get users from the Users sheet
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: RANGES.USERS
+    });
+
+    const users = response.data.values || [];
+    const user = users.find(row => row[1] === username && row[2] === password);
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Generate a simple token (in production, use a proper JWT)
+    const token = Buffer.from(`${username}-${Date.now()}`).toString('base64');
+    res.json({ token });
+  } catch (error) {
+    console.error('Error during login:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Token validation endpoint
+app.get('/api/auth/validate', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decodedToken = Buffer.from(token, 'base64').toString();
+    const [username] = decodedToken.split('-');
+
+    // Verify user exists
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: RANGES.USERS
+    });
+
+    const users = response.data.values || [];
+    const userExists = users.some(row => row[1] === username);
+
+    if (!userExists) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    res.json({ valid: true });
+  } catch (error) {
+    console.error('Error validating token:', error);
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
 // Google Sheets Setup
 const auth = new google.auth.GoogleAuth({
   keyFile: path.join(__dirname, 'keys.json'),
@@ -91,6 +150,7 @@ const RANGES = {
   SALES: 'Sales!A2:J',      // 10 columns (A to J)
   PARTNERS: 'Partners!A2:E', // 5 columns (A to E)
   RENTALS: 'Rentals!A2:O',  // 15 columns (A to O)
+  USERS: 'Users!A2:C',      // 3 columns (A to C: ID, Username, Password)
 };
 
 // Configure multer for file uploads

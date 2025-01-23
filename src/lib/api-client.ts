@@ -1,9 +1,7 @@
 const API_BASE_URL = 'http://localhost:3000/api';
 
 import { 
-  Car, Repair, Sale, Partner, Rental,
-  CarInput, RepairInput, SaleInput, RentalInput, PartnerInput,
-  CarUpdate, RepairUpdate, SaleUpdate, RentalUpdate, PartnerUpdate
+  Car, Repair, Sale, Partner, Rental, RepairInput, SaleInput, RentalInput,
 } from '@/types';
 
 interface PaginatedResponse<T> {
@@ -24,10 +22,12 @@ interface GroupedRepairs {
 
 class ApiClient {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    const token = localStorage.getItem('auth_token');
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
         ...options?.headers,
       },
     });

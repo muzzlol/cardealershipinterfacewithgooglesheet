@@ -324,7 +324,15 @@ export function Edits() {
       </Button>
     );
   };
-
+  if (loading) {
+    return (
+      <PageContainer>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </PageContainer>
+    );  
+  }
   return (
     <PageContainer>
       <div className="grid gap-4">

@@ -85,7 +85,6 @@ export function SalesList() {
       </PageContainer>
     );
   }
-
   return (
     <PageContainer>
       <div className="space-y-8">

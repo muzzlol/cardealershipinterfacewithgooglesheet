@@ -40,6 +40,9 @@ function setupGoogleSheet() {
       "Daily Rate (SAR)", "Total Rent Earned (SAR)",
       "Damage Fee (SAR)", "Late Fee (SAR)", "Other Fee (SAR)",
       "Additional Costs Description", "Rental Status"
+    ],
+    "Users": [
+      "User ID", "Username", "Password"
     ]
   };
 
