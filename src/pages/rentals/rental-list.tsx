@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Table,
   TableBody,
@@ -24,27 +24,31 @@ import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/components/ui/use-toast';
 import { PageContainer } from '@/components/layout/page-container';
 import { format, differenceInDays } from 'date-fns';
+import { LimitSelector } from '@/components/ui/limit-selector';
 
 export function RentalList() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rentals, setRentals] = useState<Rental[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const { toast } = useToast();
 
+  const currentPage = Number(searchParams.get('page')) || 1;
+  const limit = Number(searchParams.get('limit')) || 10;
+
   useEffect(() => {
     loadRentals();
-  }, [currentPage]);
+  }, [currentPage, limit]);
 
-  // Refresh list when window regains focus
   useEffect(() => {
     function onFocus() {
-      loadRentals();
+      if (!loading) {
+        loadRentals();
+      }
     }
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, []);
+  }, [loading]);
 
   async function loadRentals() {
     try {
@@ -52,7 +56,6 @@ export function RentalList() {
       const response = await apiClient.getRentals(currentPage, limit);
       setRentals(response.data);
       setTotalPages(response.pagination.totalPages);
-      setLimit(response.pagination.limit);
     } catch (error) {
       toast({
         title: 'Error',
@@ -63,6 +66,21 @@ export function RentalList() {
       setLoading(false);
     }
   }
+
+  const handlePageChange = (page: number) => {
+    setSearchParams(prev => {
+      prev.set('page', page.toString());
+      return prev;
+    });
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    setSearchParams(prev => {
+      prev.set('limit', newLimit.toString());
+      prev.set('page', '1');
+      return prev;
+    });
+  };
 
   if (loading) {
     return (
@@ -141,7 +159,9 @@ export function RentalList() {
                   </TableCell>
                   <TableCell>
                     <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      rental.rentalStatus === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      rental.rentalStatus === 'Active' ? 'bg-green-100 text-green-800' : 
+                      rental.rentalStatus === 'Completed' ? 'bg-blue-100 text-blue-800' :
+                      'bg-gray-100 text-gray-800'
                     }`}>
                       {rental.rentalStatus}
                     </div>
@@ -170,12 +190,13 @@ export function RentalList() {
         </Table>
       </div>
 
-      <div className="mt-4 flex justify-center">
+      <div className="mt-4 flex items-center justify-between">
+        <LimitSelector value={limit} onValueChange={handleLimitChange} />
         <Pagination>
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious 
-                onClick={() => currentPage > 1 && setCurrentPage(prev => prev - 1)}
+                onClick={() => handlePageChange(currentPage - 1)}
                 className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
               />
             </PaginationItem>
@@ -189,7 +210,7 @@ export function RentalList() {
                 return (
                   <PaginationItem key={pageNumber}>
                     <PaginationLink
-                      onClick={() => setCurrentPage(pageNumber)}
+                      onClick={() => handlePageChange(pageNumber)}
                       isActive={currentPage === pageNumber}
                     >
                       {pageNumber}
@@ -210,7 +231,7 @@ export function RentalList() {
             })}
             <PaginationItem>
               <PaginationNext
-                onClick={() => currentPage < totalPages && setCurrentPage(prev => prev + 1)}
+                onClick={() => handlePageChange(currentPage + 1)}
                 className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
               />
             </PaginationItem>
