@@ -27,7 +27,6 @@ import { useToast } from '@/components/ui/use-toast';
 import { PageContainer } from '@/components/layout/page-container';
 import numeral from 'numeral';
 import { LimitSelector } from '@/components/ui/limit-selector';
-// import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Helper function to convert Google Drive link to direct image URL
 const getGoogleDriveImageUrl = (url: string): string => {

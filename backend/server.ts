@@ -73,6 +73,7 @@ app.use(cors({
   exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Authentication endpoint
 app.post('/api/auth/login', async (req, res) => {
@@ -157,7 +158,7 @@ const RANGES = {
 const upload = multer({ 
   dest: 'uploads/',
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit
   }
 });
 
@@ -243,8 +244,6 @@ app.get('/api/cars/available', async (req, res) => {
 
 app.get('/api/cars', async (req, res) => {
   const { page, limit } = validatePaginationParams(req.query);
-  const startRow = (page - 1) * limit + 2;
-  const endRow = startRow + limit - 1;
   try {
       const [response, countResponse] = await Promise.all([sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
@@ -257,7 +256,7 @@ app.get('/api/cars', async (req, res) => {
     ]);
 
     const totalItems = (countResponse.data.values?.length || 0) - 1;
-    const cars = (response.data.values || []).map(row => ({
+    const allCars = (response.data.values || []).map(row => ({
       id: row[0],
       make: row[1],
       model: row[2],
@@ -281,7 +280,13 @@ app.get('/api/cars', async (req, res) => {
       profitLoss: Number(row[20] || 0),
       partnerReturns: row[21] || ''
     }));
-    res.json(createPaginatedResponse(cars, page, limit, totalItems));
+    
+    // Apply pagination to the rentals array
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedCars = allCars.slice(startIndex, endIndex);
+    
+    res.json(createPaginatedResponse(paginatedCars, page, limit, totalItems));
   } catch (error) {
     console.error('Error fetching cars:', error);
     res.status(500).json({ error: 'Failed to fetch cars' });
@@ -341,9 +346,9 @@ app.post('/api/cars', upload.fields([
       condition,           // J - Condition
       sellerName,          // K - Seller Name
       sellerContact,       // L - Seller Contact
-      transportCost,    // M - Transport Cost
-      inspectionCost,   // N - Inspection Cost
-      otherCosts,        // O - Other Costs
+      transportCost || '0',    // M - Transport Cost
+      inspectionCost || '0',   // N - Inspection Cost
+      otherCosts  || '0',        // O - Other Costs
       null,                // P - Total Cost (formula)
       location || '',      // Q - Location
       documentsUrl,        // R - Documents
@@ -389,14 +394,10 @@ app.post('/api/cars', upload.fields([
 });
 
 // Update existing car
-app.put('/api/cars/:id', upload.fields([
-  { name: 'documents', maxCount: 1 },
-  { name: 'photo', maxCount: 1 }
-]), async (req, res) => {
+app.put('/api/cars/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
     // Get current car data
     const response = await sheets.spreadsheets.values.get({
@@ -411,27 +412,6 @@ app.put('/api/cars/:id', upload.fields([
     }
 
     const currentRow = rows[rowIndex];
-
-    // Handle file updates
-    let documentsUrl = currentRow[17]; // Keep existing URL if no new file
-    let photoUrl = currentRow[18];     // Keep existing URL if no new file
-
-    if (files.documents) {
-      // Delete old document if it exists
-      if (documentsUrl) {
-        await deleteFile(documentsUrl);
-      }
-      documentsUrl = await uploadFile(files.documents[0], documentsFolderId, 'document');
-    }
-
-    if (files.photo) {
-      // Delete old photo if it exists
-      if (photoUrl) {
-        await deleteFile(photoUrl);
-      }
-      photoUrl = await uploadFile(files.photo[0], photosFolderId, 'photo');
-    }
-
     const updatedRow = [
       id,
       updates.make || currentRow[1],
@@ -450,8 +430,8 @@ app.put('/api/cars/:id', upload.fields([
       Number(updates.otherCosts) || Number(currentRow[14]),
       currentRow[15], // totalCost (formula-driven)
       updates.location || currentRow[16],
-      documentsUrl,
-      photoUrl,
+      currentRow[17],
+      currentRow[18],
       updates.investmentSplit || currentRow[19],
       currentRow[20], // profitLoss (formula-driven)
       currentRow[21]  // partnerReturns (formula-driven)
@@ -471,8 +451,6 @@ app.put('/api/cars/:id', upload.fields([
       data: {
         ...updates,
         id,
-        documents: documentsUrl,
-        photo: photoUrl
       }
     });
   } catch (error) {
@@ -484,8 +462,6 @@ app.put('/api/cars/:id', upload.fields([
 // Repairs endpoints
 app.get('/api/repairs', async (req, res) => {
   const { page, limit } = validatePaginationParams(req.query);
-  const startRow = (page - 1) * limit + 2; 
-  const endRow = startRow + limit - 1
   try {
     const carId = req.query.carId;
     const [response, countResponse] = await Promise.all([
@@ -518,9 +494,14 @@ app.get('/api/repairs', async (req, res) => {
     const filteredRepairs = carId 
       ? repairs.filter(repair => repair.carId === carId)
       : repairs;
-
+    
+    // Apply pagination to the cars array
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedRepairs = filteredRepairs.slice(startIndex, endIndex);
     const totalItems = (countResponse.data.values?.length || 0) - 1;
-    res.json(createPaginatedResponse(filteredRepairs, page, limit, totalItems));
+    
+    res.json(createPaginatedResponse(paginatedRepairs, page, limit, totalItems));
   } catch (error) {
     console.error('Error fetching repairs:', error);
     res.status(500).json({ error: 'Failed to fetch repairs' });
@@ -585,8 +566,6 @@ app.post('/api/repairs', async (req, res) => {
 // Sales endpoints
 app.get('/api/sales', async (req, res) => {
   const { page, limit } = validatePaginationParams(req.query);
-  const startRow = (page - 1) * limit + 2;
-  const endRow = startRow + limit - 1;
   try {
     const [response, countResponse] = await Promise.all([
       sheets.spreadsheets.values.get({
@@ -613,7 +592,13 @@ app.get('/api/sales', async (req, res) => {
       netProfit: Number(row[9])
     }));
 
-    res.json(createPaginatedResponse(sales, page, limit, totalItems));
+
+    // Apply pagination to the sales array
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedSales = sales.slice(startIndex, endIndex);
+    
+    res.json(createPaginatedResponse(paginatedSales, page, limit, totalItems));
   } catch (error) {
     console.error('Error fetching sales:', error);
     res.status(500).json({ error: 'Failed to fetch sales' });
@@ -959,7 +944,13 @@ app.get('/api/rentals', async (req, res) => {
     });
     const totalItems = (totalResponse.data.values?.length || 0) - 1;
 
-    res.json(createPaginatedResponse(rentals, page, limit, totalItems));
+
+    // Apply pagination to the rentals array
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedRentals = rentals.slice(startIndex, endIndex);
+    
+    res.json(createPaginatedResponse(paginatedRentals, page, limit, totalItems));
   } catch (error) {
     console.error('Error fetching rentals:', error);
     res.status(500).json({ error: 'Failed to fetch rentals' });

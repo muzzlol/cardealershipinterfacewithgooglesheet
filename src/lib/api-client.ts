@@ -23,13 +23,18 @@ interface GroupedRepairs {
 class ApiClient {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const token = localStorage.getItem('auth_token');
+    const headers: Record<string, string> = {
+      'Authorization': token ? `Bearer ${token}` : ''
+    };
+
+    // Only add Content-Type: application/json if we're not sending FormData
+    if (!(options?.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : '',
-        ...options?.headers,
-      },
+      headers: options?.headers || headers
     });
 
     if (!response.ok) {
