@@ -29,6 +29,7 @@ yarn.lock
 
 # Sensitive files
 backend/keys.json
+backend/keyz.json
 .env
 **/.env
 **/.env.local
