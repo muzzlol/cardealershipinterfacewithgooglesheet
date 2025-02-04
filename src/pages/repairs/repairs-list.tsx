@@ -165,9 +165,10 @@ export function RepairsList() {
                             <Table>
                               <TableHeader>
                                 <TableRow>
-                                  <TableHead className="w-[20%]">Date</TableHead>
-                                  <TableHead className="w-[35%]">Description</TableHead>
+                                  <TableHead className="w-[10%]">Date</TableHead>
+                                  <TableHead className="w-[30%]">Description</TableHead>
                                   <TableHead className="w-[25%]">Service Details</TableHead>
+                                  <TableHead className="w-[15%]">Mechanic Name</TableHead>
                                   <TableHead className="w-[20%] text-right">Cost</TableHead>
                                 </TableRow>
                               </TableHeader>
@@ -180,10 +181,13 @@ export function RepairsList() {
                                     <TableCell>{repair.description}</TableCell>
                                     <TableCell>
                                       <div className="text-sm">
-                                        <div className="font-medium">{repair.serviceProvider.name}</div>
-                                        <div className="text-muted-foreground">{repair.mechanicName}</div>
+                                        <div className="space-y-1">
+                                          <div className="font-medium">{repair.serviceProviderName}</div>
+                                          <div className="text-sm text-muted-foreground">{repair.serviceProviderContact} | {repair.serviceProviderAddress}</div>
+                                        </div>
                                       </div>
                                     </TableCell>
+                                    <TableCell>{repair.mechanicName}</TableCell>
                                     <TableCell className="text-right font-medium">
                                       SAR {repair.cost.toLocaleString()}
                                     </TableCell>

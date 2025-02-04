@@ -30,7 +30,7 @@ interface EditableEntry {
 
 const EDITABLE_FIELDS: Record<EntryType, string[]> = {
   car: ['make', 'model', 'year', 'color', 'registrationNumber', 'purchasePrice', 'purchaseDate', 'condition', 'sellerName', 'sellerContact', 'transportCost', 'inspectionCost', 'otherCosts', 'location', 'investmentSplit'],
-  repair: ['carId', 'repairDate', 'description', 'mechanicName', 'cost', 'serviceProvider'],
+  repair: ['carId', 'repairDate', 'description', 'mechanicName', 'cost', 'serviceProviderName', 'serviceProviderContact', 'serviceProviderAddress'],
   sale: ['carId', 'saleDate', 'salePrice', 'buyerName', 'buyerContactInfo', 'paymentStatus'],
   rental: ['carId', 'customerName', 'customerContact', 'startDate', 'returnDate', 'dailyRate', 'damageFee', 'lateFee', 'otherFee', 'additionalCostsDescription']
 };
@@ -212,33 +212,7 @@ export function Edits() {
       );
     }
 
-    if (field === 'serviceProvider') {
-      return (
-        <div className="space-y-2">
-          <div>
-            <Label>Name</Label>
-            <Input
-              value={value?.name || ''}
-              onChange={(e) => handleInputChange(`${field}.name`, e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>Contact</Label>
-            <Input
-              value={value?.contact || ''}
-              onChange={(e) => handleInputChange(`${field}.contact`, e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>Address</Label>
-            <Input
-              value={value?.address || ''}
-              onChange={(e) => handleInputChange(`${field}.address`, e.target.value)}
-            />
-          </div>
-        </div>
-      );
-    }
+
 
     return (
       <Input

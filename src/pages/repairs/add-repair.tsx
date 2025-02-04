@@ -40,11 +40,9 @@ const formSchema = z.object({
   cost: z.string().transform((val) => Number(val)).pipe(z.number().positive('Cost must be positive')),
   mechanicName: z.string().min(1, 'Mechanic name is required'),
   repairDate: z.string().min(1, 'Date is required'),
-  serviceProvider: z.object({
-    name: z.string().min(1, 'Service provider name is required'),
-    contact: z.string().min(1, 'Service provider contact is required'),
-    address: z.string().min(1, 'Service provider address is required')
-  })
+  serviceProviderName: z.string().min(1, 'Service provider name is required'),
+  serviceProviderContact: z.string().min(1, 'Service provider contact is required'),
+  serviceProviderAddress: z.string().min(1, 'Service provider address is required')
 });
 
 export function AddRepair() {
@@ -80,14 +78,7 @@ export function AddRepair() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setLoading(true);
-      await apiClient.addRepair({
-        ...values,
-        serviceProvider: {
-          name: values.serviceProvider.name,
-          contact: values.serviceProvider.contact,
-          address: values.serviceProvider.address
-        }
-      });
+      await apiClient.addRepair(values);
 
       toast({
         title: 'Success',
@@ -219,7 +210,7 @@ export function AddRepair() {
                   <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <FormField
                       control={form.control}
-                      name="serviceProvider.name"
+                      name="serviceProviderName"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Service Provider Name</FormLabel>
@@ -233,7 +224,7 @@ export function AddRepair() {
 
                     <FormField
                       control={form.control}
-                      name="serviceProvider.contact"
+                      name="serviceProviderContact"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Service Provider Contact</FormLabel>
@@ -247,7 +238,7 @@ export function AddRepair() {
 
                     <FormField
                       control={form.control}
-                      name="serviceProvider.address"
+                      name="serviceProviderAddress"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Service Provider Address</FormLabel>

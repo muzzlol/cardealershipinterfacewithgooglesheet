@@ -244,6 +244,8 @@ app.get('/api/cars/available', async (req, res) => {
 
 app.get('/api/cars', async (req, res) => {
   const { page, limit } = validatePaginationParams(req.query);
+  const startRow = (page - 1) * limit + 2;
+  const endRow = startRow + limit - 1;
   try {
       const [response, countResponse] = await Promise.all([sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
@@ -281,7 +283,7 @@ app.get('/api/cars', async (req, res) => {
       partnerReturns: row[21] || ''
     }));
     
-    // Apply pagination to the rentals array
+    // Apply pagination to the cars array
     const startIndex = (page - 1) * limit;
     const endIndex = startIndex + limit;
     const paginatedCars = allCars.slice(startIndex, endIndex);
@@ -462,6 +464,8 @@ app.put('/api/cars/:id', async (req, res) => {
 // Repairs endpoints
 app.get('/api/repairs', async (req, res) => {
   const { page, limit } = validatePaginationParams(req.query);
+  const startRow = (page - 1) * limit + 2; 
+  const endRow = startRow + limit - 1
   try {
     const carId = req.query.carId;
     const [response, countResponse] = await Promise.all([
@@ -483,25 +487,18 @@ app.get('/api/repairs', async (req, res) => {
         description: row[3],
         cost: Number(row[4]),
         mechanicName: row[5],
-        serviceProvider: {
-          name: row[6],
-          contact: row[7],
-          address: row[8]
-        }
+        serviceProviderName: row[6],
+        serviceProviderContact: row[7],
+        serviceProviderAddress: row[8]
       }));
 
     // If carId is provided, filter repairs for that car
     const filteredRepairs = carId 
       ? repairs.filter(repair => repair.carId === carId)
       : repairs;
-    
-    // Apply pagination to the cars array
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedRepairs = filteredRepairs.slice(startIndex, endIndex);
+
     const totalItems = (countResponse.data.values?.length || 0) - 1;
-    
-    res.json(createPaginatedResponse(paginatedRepairs, page, limit, totalItems));
+    res.json(createPaginatedResponse(filteredRepairs, page, limit, totalItems));
   } catch (error) {
     console.error('Error fetching repairs:', error);
     res.status(500).json({ error: 'Failed to fetch repairs' });
@@ -516,7 +513,9 @@ app.post('/api/repairs', async (req, res) => {
       description,
       cost,
       mechanicName,
-      serviceProvider
+      serviceProviderName,
+      serviceProviderContact,
+      serviceProviderAddress
     } = req.body;
 
     // Get existing repairs to generate new ID
@@ -534,9 +533,9 @@ app.post('/api/repairs', async (req, res) => {
       description,
       cost,
       mechanicName,
-      serviceProvider?.name || '',
-      serviceProvider?.contact || '',
-      serviceProvider?.address || ''
+      serviceProviderName || '',
+      serviceProviderContact || '',
+      serviceProviderAddress || ''
     ];
 
     await sheets.spreadsheets.values.append({
@@ -555,7 +554,9 @@ app.post('/api/repairs', async (req, res) => {
       description,
       cost,
       mechanicName,
-      serviceProvider
+      serviceProviderName,
+      serviceProviderContact,
+      serviceProviderAddress
     });
   } catch (error) {
     console.error('Error adding repair:', error);
@@ -566,6 +567,8 @@ app.post('/api/repairs', async (req, res) => {
 // Sales endpoints
 app.get('/api/sales', async (req, res) => {
   const { page, limit } = validatePaginationParams(req.query);
+  const startRow = (page - 1) * limit + 2;
+  const endRow = startRow + limit - 1;
   try {
     const [response, countResponse] = await Promise.all([
       sheets.spreadsheets.values.get({
@@ -592,13 +595,7 @@ app.get('/api/sales', async (req, res) => {
       netProfit: Number(row[9])
     }));
 
-
-    // Apply pagination to the sales array
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedSales = sales.slice(startIndex, endIndex);
-    
-    res.json(createPaginatedResponse(paginatedSales, page, limit, totalItems));
+    res.json(createPaginatedResponse(sales, page, limit, totalItems));
   } catch (error) {
     console.error('Error fetching sales:', error);
     res.status(500).json({ error: 'Failed to fetch sales' });
@@ -757,11 +754,9 @@ app.get('/api/recent-entries', async (req, res) => {
       description: row[3],
       cost: parseFloat(row[4]) || 0,
       mechanicName: row[5],
-      serviceProvider: {
-        name: row[6] || '',
-        contact: row[7] || '',
-        address: row[8] || ''
-      }
+      serviceProviderName: row[6] || '',
+      serviceProviderContact: row[7] || '',
+      serviceProviderAddress: row[8] || ''
     })).filter(repair => repair.id);
 
     const sales = (salesResponse.data.values || []).slice(-5).map(row => ({
@@ -836,9 +831,9 @@ app.put('/api/repairs/:id', async (req, res) => {
       updates.description || currentRow[3],
       Number(updates.cost) || Number(currentRow[4]),
       updates.mechanicName || currentRow[5],
-      updates.serviceProvider?.name || currentRow[6],
-      updates.serviceProvider?.contact || currentRow[7],
-      updates.serviceProvider?.address || currentRow[8]
+      updates.serviceProviderName || currentRow[6],
+      updates.serviceProviderContact || currentRow[7],
+      updates.serviceProviderAddress || currentRow[8]
     ];
 
     await sheets.spreadsheets.values.update({
@@ -944,13 +939,7 @@ app.get('/api/rentals', async (req, res) => {
     });
     const totalItems = (totalResponse.data.values?.length || 0) - 1;
 
-
-    // Apply pagination to the rentals array
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedRentals = rentals.slice(startIndex, endIndex);
-    
-    res.json(createPaginatedResponse(paginatedRentals, page, limit, totalItems));
+    res.json(createPaginatedResponse(rentals, page, limit, totalItems));
   } catch (error) {
     console.error('Error fetching rentals:', error);
     res.status(500).json({ error: 'Failed to fetch rentals' });

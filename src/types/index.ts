@@ -4,12 +4,6 @@ export type Condition = 'Excellent' | 'Good' | 'Fair' | 'Poor';
 export type PaymentStatus = 'Paid' | 'Unpaid';
 export type RentalStatus = 'Active' | 'Completed';
 
-export interface ServiceProvider {
-  name: string;
-  contact: string;
-  address: string;
-}
-
 // Base interfaces with computed fields marked as readonly
 export interface Car {
   id: string;
@@ -43,7 +37,9 @@ export interface Repair {
   description: string;
   cost: number;
   mechanicName: string;
-  serviceProvider: ServiceProvider;
+  serviceProviderName: string;
+  serviceProviderContact: string;
+  serviceProviderAddress: string;
 }
 
 export interface Sale {
