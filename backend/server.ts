@@ -136,7 +136,7 @@ app.get('/api/auth/validate', async (req, res) => {
 
 // Google Sheets Setup
 const auth = new google.auth.GoogleAuth({
-  keyFile: path.join(__dirname, 'keyz.json'),
+  keyFile: path.join(__dirname, 'keys.json'),
   scopes: ['https://www.googleapis.com/auth/spreadsheets']
 });
 const sheets = google.sheets({ version: 'v4', auth });
