@@ -2,6 +2,7 @@ const API_BASE_URL = 'http://localhost:3000/api';
 
 import { 
   Car, Repair, Sale, Partner, Rental, RepairInput, SaleInput, RentalInput,
+  CarInput,
 } from '@/types';
 
 interface PaginatedResponse<T> {
@@ -62,11 +63,10 @@ class ApiClient {
     });
   }
 
-  async updateCar(id: string, carData: FormData): Promise<Car> {
+  async updateCar(id: string, car: Partial<CarInput>): Promise<Car> {
     return this.request<Car>(`/cars/${id}`, {
       method: 'PUT',
-      body: carData,
-      headers: {} // Let browser set correct Content-Type for FormData
+      body: JSON.stringify(car)
     });
   }
 

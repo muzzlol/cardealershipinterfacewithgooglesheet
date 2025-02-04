@@ -167,7 +167,7 @@ export function RepairsList() {
                                 <TableRow>
                                   <TableHead className="w-[10%]">Date</TableHead>
                                   <TableHead className="w-[30%]">Description</TableHead>
-                                  <TableHead className="w-[25%]">Service Details</TableHead>
+                                  <TableHead className="w-[25%]">Service Provider Details</TableHead>
                                   <TableHead className="w-[15%]">Mechanic Name</TableHead>
                                   <TableHead className="w-[20%] text-right">Cost</TableHead>
                                 </TableRow>
@@ -183,7 +183,11 @@ export function RepairsList() {
                                       <div className="text-sm">
                                         <div className="space-y-1">
                                           <div className="font-medium">{repair.serviceProviderName}</div>
-                                          <div className="text-sm text-muted-foreground">{repair.serviceProviderContact} | {repair.serviceProviderAddress}</div>
+                                          <div className="text-sm text-muted-foreground">
+                                            {repair.serviceProviderContact && repair.serviceProviderAddress 
+                                              ? `${repair.serviceProviderContact} | ${repair.serviceProviderAddress}`
+                                              : repair.serviceProviderContact || repair.serviceProviderAddress}
+                                          </div>
                                         </div>
                                       </div>
                                     </TableCell>

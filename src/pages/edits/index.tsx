@@ -95,14 +95,9 @@ export function Edits() {
       setLoading(true);
       let response;
       switch (selectedEntry.type) {
-        case 'car': {
-          const formData = new FormData();
-          Object.entries(editableData).forEach(([key, value]) => {
-            formData.append(key, String(value));
-          });
-          response = await apiClient.updateCar(selectedEntry.id, formData);
+        case 'car':
+          response = await apiClient.updateCar(selectedEntry.id, editableData);
           break;
-        }
         case 'repair':
           response = await apiClient.updateRepair(selectedEntry.id, editableData);
           break;
